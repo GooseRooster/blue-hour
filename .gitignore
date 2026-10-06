@@ -3,3 +3,9 @@ cosign.private
 /Containerfile
 *.iso
 *.iso-CHECKSUM
+
+# Nix dev tooling
+.direnv/
+result
+result-*
+/.bluebuild-scripts_*

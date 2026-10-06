@@ -1,0 +1,24 @@
+---
+# yaml-language-server: $schema=https://schema.blue-build.org/recipe-v1.json
+name: blue-hour-gaming
+description: >-
+  blue-hour gaming — the workstation flavour plus the gaming layer: Steam and
+  Wine/Faugus, a TuneD latency profile, ananicy-cpp and GPU Screen Recorder.
+base-image: ghcr.io/blue-build/base-images/fedora-base
+image-version: latest
+
+modules:
+  # The shared base (same as the workstation flavour).
+  - from-file: common.yml
+
+  # --- TODO(port, phase 5) ------------------------------------------------
+  # - RPMFusion repo files + keys (explicit, NOT `nonfree:`, to keep the base's
+  #   negativo17 repo enabled) for Steam.
+  # - Native Steam + Adwaita-for-Steam; Wine + winetricks + Faugus Launcher.
+  # - TuneD: override the performance profile to latency-performance.
+  # - `game-performance` helper (TuneD + Noctalia IPC + notifications).
+  # No GameMode: the custom game-performance script is used instead.
+  # ananicy-cpp and GPU Screen Recorder live in common.yml (both flavours).
+
+  # Must stay last.
+  - type: signing

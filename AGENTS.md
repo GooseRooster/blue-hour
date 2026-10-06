@@ -1,0 +1,114 @@
+# AGENTS.md
+
+Guidance for agents (and humans) working in the **blue-hour** repository.
+
+This repo builds a custom atomic Fedora image with [BlueBuild](https://blue-build.org/).
+It is **not** a NixOS repo: the image ships its own Nix, but this repository's
+`flake.nix` is only developer tooling. Keep that distinction in mind.
+
+## What this project is
+
+An immutable, image-based Fedora OS with a lightweight Wayland desktop
+(Sway + Noctalia) and a userland built on Nix, Home Manager and Homebrew.
+It ships in two flavours:
+
+- **workstation** — daily driver.
+- **gaming** — workstation plus the gaming layer (extends workstation).
+
+The target end-state is described in `README.md`. The port from the author's
+NixOS config is planned in `docs/port-plan.md`. **Do not** describe port work as
+done in `README.md`; README describes the intended image, not migration status.
+
+## Repository layout
+
+| Path | Purpose |
+| --- | --- |
+| `recipes/` | BlueBuild recipes. `common.yml` is shared; `workstation.yml` and `gaming.yml` are the flavours. |
+| `files/system/` | Files copied into the image root (`/`) at build time. Use `/etc` for system config. |
+| `files/scripts/` | Shell scripts invoked by the `script` module. |
+| `modules/` | (Legacy template dir.) BlueBuild module definitions, if any. |
+| `containerfiles/` | Optional raw Containerfile snippets (`containerfile` module). |
+| `docs/` | Planning (`port-plan.md`) and testing (`testing.md`). |
+| `flake.nix` | Dev tooling only: BlueBuild CLI, podman/buildah, qemu, just. |
+
+## Prerequisites / dev shell
+
+```sh
+nix develop          # BlueBuild CLI + podman/buildah + qemu + just
+just                 # list tasks
+```
+
+Local builds need a container engine. On NixOS set
+`virtualisation.podman.enable = true`; the dev shell provides a `podman` client.
+`nix run .#bluebuild -- ...` works without entering the shell.
+
+## Common commands
+
+```sh
+# Print the generated Containerfile (stdout)
+bluebuild generate recipes/workstation.yml
+
+# Show the fully-resolved recipe (all from-file includes expanded)
+bluebuild generate --display-full-recipe recipes/workstation.yml
+
+# Build a flavour locally
+bluebuild build recipes/workstation.yml
+
+# Build an offline ISO from a local recipe
+bluebuild generate-iso --iso-name blue-hour-workstation.iso recipe recipes/workstation.yml
+```
+
+Equivalent `just` tasks: `just containerfile`, `just recipe-dump`, `just build`,
+`just iso`, `just vm`.
+
+## Conventions
+
+- Recipes are YAML with the `$schema` header. Flavours **must** pull in
+  `common.yml` first via `from-file:` and end with `- type: signing`.
+- Keep shared config in `common.yml` (or split into `common-*.yml` and include
+  them); only flavour-specific modules go in the flavour recipe.
+- `files/system/*` copies to `/`. In build-time source, put system config under
+  `files/system/etc/...` (it is moved to `/usr/etc` on deployment).
+  Do **not** copy into `/home`, `/opt`, `/var`, `/srv`, `/root`, `/usr/local`,
+  `/mnt` or `/tmp` — `rpm-ostree`/`bootc` symlink those and the build will conflict.
+- Module order matters and is single-pass. `signing` stays last.
+- The base image (`ghcr.io/blue-build/base-images/fedora-base`) already provides
+  full codecs/hardware accel (negativo17 + fedora-multimedia), bootc/flatpak
+  auto-update timers, and an `ublue-os/packages` COPR. **Do not** re-add codecs
+  or call `nonfree: rpmfusion` — it disables the base's negativo17 repo. Add
+  RPMFusion packages via explicit `repos.files` + `repos.keys` instead.
+- Prefer declarative modules (`dnf`, `files`, `systemd`, `default-flatpaks`,
+  `brew`, `script`) over raw `containerfile` snippets.
+- Nix inside the image: Fedora `nix` + `nix-daemon` with a persistent
+  `/var/nix` → `/nix` bind mount. See `docs/port-plan.md` (phase 1). Do not
+  install Nix via the upstream shell installer.
+- Secure Boot: the blue-build base signs the kernel/modules with its own MOK key
+  (`akmods-blue-build.der`), **not** Fedora's. ISOs must pass
+  `--secure-boot-url`/`--enrollment-password bluebuild` (the `just iso` recipe
+  does); rebases enroll via `ujust enroll-secure-boot-key`. Do not confuse this
+  with cosign/`signing`, which is OCI image verification.
+
+## Secrets
+
+- **Never** commit `cosign.key` / `cosign.private` (already gitignored).
+- CI signs with `secrets.SIGNING_SECRET`; the public key is `cosign.pub`.
+- Do not log or echo signing material in scripts.
+
+## Testing gate
+
+Before committing a recipe change, at minimum run:
+
+```sh
+bluebuild generate recipes/<flavour>.yml >/dev/null   # validates YAML + modules
+```
+
+Full local/VM verification (ISO build, QEMU boot, smoke checklist, rollback) is
+in `docs/testing.md`. Any change to Nix setup, Sway, Ly, or the gaming layer
+must be verified in the VM before merge.
+
+## Where to look
+
+- Image target / flavours: `README.md`
+- Port phases and NixOS→BlueBuild mapping: `docs/port-plan.md`
+- Build + VM testing routine: `docs/testing.md`
+- BlueBuild module reference: <https://blue-build.org/reference/module/>

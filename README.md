@@ -1,43 +1,154 @@
-# blue-hour &nbsp; [![bluebuild build badge](https://github.com/gooserooster/blue-hour/actions/workflows/build.yml/badge.svg)](https://github.com/gooserooster/blue-hour/actions/workflows/build.yml)
+# blue-hour &nbsp; [![bluebuild build badge](https://github.com/GooseRooster/blue-hour/actions/workflows/build.yml/badge.svg)](https://github.com/GooseRooster/blue-hour/actions/workflows/build.yml)
 
-See the [BlueBuild docs](https://blue-build.org/how-to/setup/) for quick setup instructions for setting up your own repository based on this template.
+An immutable, image-based Fedora OS with a lightweight Wayland desktop
+(**Sway + Noctalia**) and a userland built on **Nix, Home Manager and Homebrew**.
 
-After setup, it is recommended you update this README to describe your custom image.
+blue-hour keeps the stable, secure, atomic base of Fedora while treating the
+desktop shell, apps and CLI tooling as things you can freely re-declare. It
+comes in two flavours that share one common base.
+
+> **Status:** the image is being ported from the author's NixOS configuration.
+> This README describes the intended target image; the migration is tracked in
+> [`docs/port-plan.md`](docs/port-plan.md).
+
+## Flavours
+
+| Flavour | Image | What it is |
+| --- | --- | --- |
+| **workstation** | `ghcr.io/gooserooster/blue-hour-workstation` | Daily-driver desktop: Sway + Noctalia, the session stack, dev tooling (Nix/Home Manager/Homebrew), baseline Flatpaks. |
+| **gaming** | `ghcr.io/gooserooster/blue-hour-gaming` | Everything in workstation plus the gaming layer: Steam/Wine/Faugus, TuneD latency profile, ananicy-cpp, GPU Screen Recorder, RPMFusion packages. |
+
+Both flavours are built from the same `common.yml`; `gaming` is a superset of
+`workstation`.
+
+## What's inside
+
+### Base system
+- **Atomic Fedora** (bootc image), built on BlueBuild's `fedora-base`.
+- Full **codecs and hardware acceleration** out of the box (negativo17 +
+  fedora-multimedia), inherited from the base image.
+- Automatic **bootc** and **Flatpak** updates via systemd timers.
+- Baseline Flatpaks (media player, app store, GNOME core apps, Flatseal,
+  Warehouse, Gearlever, GTK theme extensions) installed system-wide.
+- Container tooling (`podman`, `distrobox`), `just`, `htop`, `tmux`, `vim`,
+  WireGuard tools, gvfs, and more (from the base image).
+- **ananicy-cpp** auto-nice daemon, keeping interactive work responsive while
+  builds and containers run in the background.
+
+### Desktop
+- **Sway** (Wayland compositor) built from the latest upstream release.
+- **Noctalia** shell, with its built-in theming.
+- **Ly** TUI display manager (with its Fedora SELinux policy).
+- PipeWire audio, XDG portals (wlr/gtk/gnome), gnome-keyring, polkit.
+- **GPU Screen Recorder** (the primary screenshot and screen-recording tool),
+  adw-gtk3 + Hatter icon theme, Nerd Fonts.
+
+### Userland
+- **Nix** + flakes with a persistent store (`/nix` backed by `/var/nix`).
+- **Home Manager** for the per-user layer (reusing the author's dotfiles repo).
+- **Homebrew** for Linuxbrew packages.
+- **topgrade** to update everything in one shot.
+
+### Gaming layer (gaming flavour only)
+- Native **Steam** (Adwaita-for-Steam skinned) and **Wine** + winetricks +
+  Faugus Launcher.
+- A `game-performance` helper that switches TuneD to a latency profile and
+  toggles Night Light / caffeine while a game runs.
+- RPMFusion packages added explicitly (without disturbing the base's
+  negativo17 repo).
 
 ## Installation
 
-> [!WARNING]  
-> [This is an experimental feature](https://www.fedoraproject.org/wiki/Changes/OstreeNativeContainerStable), try at your own discretion.
+> [!WARNING]
+> This is an experimental feature. Rebase at your own discretion.
 
-To rebase an existing atomic Fedora installation to the latest build:
+Pick a flavour and rebase an existing atomic Fedora installation to it.
 
-- First rebase to the unsigned image, to get the proper signing keys and policies installed:
-  ```
-  rpm-ostree rebase ostree-unverified-registry:ghcr.io/gooserooster/blue-hour:latest
-  ```
-- Reboot to complete the rebase:
-  ```
-  systemctl reboot
-  ```
-- Then rebase to the signed image, like so:
-  ```
-  rpm-ostree rebase ostree-image-signed:docker://ghcr.io/gooserooster/blue-hour:latest
-  ```
-- Reboot again to complete the installation
-  ```
-  systemctl reboot
-  ```
+1. Rebase to the unsigned image first, so the signing policy is installed:
 
-The `latest` tag will automatically point to the latest build. That build will still always use the Fedora version specified in `recipe.yml`, so you won't get accidentally updated to the next major version.
+   ```sh
+   bootc switch ghcr.io/gooserooster/blue-hour-workstation:latest
+   ```
+
+   (replace `workstation` with `gaming` for the gaming flavour)
+
+2. Reboot:
+
+   ```sh
+   systemctl reboot
+   ```
+
+3. Rebase to the signed image:
+
+   ```sh
+   bootc switch --enforce-container-sigpolicy ghcr.io/gooserooster/blue-hour-workstation:latest
+   ```
+
+4. Reboot again to complete the installation.
+
+The `latest` tag always points at the newest build, which still tracks the
+Fedora version pinned in the recipe, so you won't be moved to a new major
+release by accident.
 
 ## ISO
 
-If build on Fedora Atomic, you can generate an offline ISO with the instructions available [here](https://blue-build.org/how-to/generate-iso/#_top). These ISOs cannot unfortunately be distributed on GitHub for free due to large sizes, so for public projects something else has to be used for hosting.
+An offline ISO can be generated from a local recipe:
+
+```sh
+bluebuild generate-iso --iso-name blue-hour-workstation.iso recipe recipes/workstation.yml
+```
+
+ISOs are large, so they aren't distributed via GitHub. See
+[`docs/testing.md`](docs/testing.md) for booting one in QEMU.
 
 ## Verification
 
-These images are signed with [Sigstore](https://www.sigstore.dev/)'s [cosign](https://github.com/sigstore/cosign). You can verify the signature by downloading the `cosign.pub` file from this repo and running the following command:
+These images are signed with [Sigstore](https://www.sigstore.dev/)'s
+[cosign](https://github.com/sigstore/cosign). Verify with the `cosign.pub` in
+this repo:
 
-```bash
-cosign verify --key cosign.pub ghcr.io/gooserooster/blue-hour
+```sh
+cosign verify --key cosign.pub ghcr.io/gooserooster/blue-hour-workstation
 ```
+
+## Secure Boot
+
+blue-hour is built on BlueBuild's `fedora-base`, which signs the kernel and
+kernel modules with **BlueBuild's own MOK key** (`akmods-blue-build.der`)
+rather than Fedora's. Fedora's shim (trusted by the firmware) verifies the
+bootloader, but the custom kernel needs that MOK key in the shim's list.
+
+If Secure Boot is enabled and the key is not enrolled, the image **will not
+boot**. The enrollment password is **`bluebuild`**.
+
+- **Installing from an ISO:** the ISO generated by `just iso` embeds the key
+  and enrolls it during installation. On first boot you'll see the shim MOK
+  manager (a blue screen); choose **Enroll MOK** and enter `bluebuild`.
+- **Installing by rebasing:** enroll the key yourself after rebasing:
+
+  ```sh
+  sudo mokutil --timeout -1
+  sudo mokutil --import /etc/pki/akmods/certs/akmods-blue-build.der
+  # enter "bluebuild" as the one-time password, then reboot
+  ```
+
+  Or run the recipe shipped by the base: `ujust enroll-secure-boot-key`.
+
+- **Verify:** `mokutil --sb-state` (should say `SecureBoot enabled`) and
+  `mokutil --list-enrolled`.
+
+This is **separate** from the cosign verification above: cosign signs the OCI
+image for `bootc` signature policy; the MOK key is what UEFI Secure Boot
+verifies at boot.
+
+## Building locally
+
+```sh
+nix develop            # BlueBuild CLI + podman/buildah + qemu + just
+just build workstation # or: bluebuild build recipes/workstation.yml
+just iso workstation   # build an offline ISO
+just vm                # boot the ISO in QEMU/KVM
+```
+
+See [`docs/testing.md`](docs/testing.md) for the full routine and the
+per-flavour smoke checklist.

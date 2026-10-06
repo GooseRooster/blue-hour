@@ -1,0 +1,19 @@
+---
+# yaml-language-server: $schema=https://schema.blue-build.org/recipe-v1.json
+name: blue-hour-workstation
+description: >-
+  blue-hour workstation — atomic Fedora with a lightweight Sway + Noctalia
+  desktop and a Nix / Home Manager / Homebrew userland.
+base-image: ghcr.io/blue-build/base-images/fedora-base
+image-version: latest
+
+modules:
+  # Everything shared with the gaming flavour lives in common.yml, so gaming is
+  # a strict superset of this image.
+  - from-file: common.yml
+
+  # TODO(port): workstation-only modules go here (desktop is currently in the
+  # common scaffold). See docs/port-plan.md phases 3-4, 6.
+
+  # Must stay last.
+  - type: signing

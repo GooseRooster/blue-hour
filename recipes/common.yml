@@ -1,0 +1,112 @@
+---
+# yaml-language-server: $schema=https://schema.blue-build.org/module-list-v1.json
+#
+# Shared modules for every blue-hour flavour.
+#
+# Flavour recipes pull this in first (`- from-file: common.yml`) and must end
+# with `- type: signing`. Because everything shared lives here, the gaming
+# flavour (common.yml + gaming modules) is a strict superset of workstation.
+#
+# Port status: scaffold. See docs/port-plan.md for the phase-by-phase work.
+modules:
+  # --- System files -------------------------------------------------------
+  # files/system/* is copied into the image root (/). Put system config under
+  # files/system/etc/... ; it is moved to /usr/etc on deployment.
+  - type: files
+    files:
+      - source: system
+        destination: /
+
+  # --- Base CLI/system packages ------------------------------------------
+  # Ported from nixos-config modules/core/system.nix.
+  # TODO(port, phase 2): timezone/locale/keymap, zram, fwupd, sysctl, udev,
+  # ananicy-cpp (replacing system76-scheduler).
+  - type: dnf
+    install:
+      packages:
+        - vim
+        - git
+        - wget
+        - curl
+        - ppp
+        - sbctl
+        - libnotify
+        - wl-clipboard
+        - playerctl
+        - cava
+
+  # --- System baseline Flatpaks ------------------------------------------
+  # Ported from nixos-config modules/flatpak/system.nix. The base image already
+  # sets up the Flathub remote; this only installs the baseline set.
+  - type: default-flatpaks
+    configurations:
+      - notify: true
+        scope: system
+        install:
+          - io.mpv.Mpv
+          - io.github.kolunmi.Bazaar
+          - be.alexandervanhee.gradia
+          - org.gnome.Calculator
+          - org.gnome.Calendar
+          - org.gnome.Characters
+          - org.gnome.clocks
+          - org.gnome.Weather
+          - org.gnome.Maps
+          - org.gnome.Papers
+          - org.gnome.Loupe
+          - org.gnome.Snapshot
+          - org.gnome.SoundRecorder
+          - org.gnome.TextEditor
+          - org.gnome.FileRoller
+          - org.gnome.baobab
+          - org.gnome.font-viewer
+          - org.gnome.Decibels
+          - org.gnome.Logs
+          - org.gnome.SimpleScan
+          - org.gnome.Connections
+          - org.gnome.Firmware
+          - org.gnome.Boxes
+          - org.gnome.DejaDup
+          - org.gnome.seahorse.Application
+          - org.mozilla.thunderbird_esr
+          - com.github.tchx84.Flatseal
+          - io.github.flattool.Warehouse
+          - io.github.flattool.Ignition
+          - it.mijorus.gearlever
+          - org.gtk.Gtk3theme.adw-gtk3
+          - org.gtk.Gtk3theme.adw-gtk3-dark
+      - scope: user
+
+  # --- Tuned system daemons (both flavours) ------------------------------
+  # ananicy-cpp: eBPF auto-nice daemon. Replaces the NixOS config's
+  #   system76-scheduler (modules/core/perf.nix) — keeps interactive work
+  #   responsive while builds/containers run in the background. Official
+  #   CachyOS port; disable `ananicy-cpp.service` if a rule misbehaves.
+  # GPU Screen Recorder: the primary screenshot + screen-recording tool
+  #   (NixOS modules/desktop/gsr.nix). Its gsr-shot/gsr-rec helpers land in
+  #   phase 3 (files/scripts); gsr-kms-server capabilities come from the RPM.
+  - type: dnf
+    repos:
+      copr:
+        - bieszczaders/kernel-cachyos-addons
+        - brycensranch/gpu-screen-recorder-git
+    install:
+      packages:
+        - ananicy-cpp
+        - cachyos-ananicy-rules
+        - gpu-screen-recorder
+
+  - type: systemd
+    system:
+      enabled:
+        - ananicy-cpp.service
+
+  # --- TODO(port) --------------------------------------------------------
+  # phase 3  Desktop stack: Sway (built from source via `stages`), Ly +
+  #          ly-selinux, Noctalia, pipewire, portals, keyring, fonts,
+  #          adw-gtk3 + Hatter, nwg-look, gsr-shot/gsr-rec helpers.
+  # phase 1  Nix: dnf install nix nix-daemon, /var/nix -> /nix bind mount,
+  #          nix-daemon ordering, SELinux.
+  # phase 5  TuneD + tuned-ppd with a shared power-profile mapping.
+  # phase 6  Homebrew (`brew` module), topgrade, Zen Browser (system).
+  # phase 7  os-release branding, justfiles for `ujust`-style update commands.
