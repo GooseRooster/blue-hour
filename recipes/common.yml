@@ -84,11 +84,14 @@ modules:
   # /run/host/fonts) are added here.
   - type: fonts
     fonts:
+      # Names are nerd-fonts release asset basenames (see the ryanoasis/
+      # nerd-fonts "latest" release); they do not always match the nixpkgs
+      # attribute names.
       nerd-fonts:
         - FiraCode
         - JetBrainsMono
-        - SauceCodePro
-        - SymbolsOnly
+        - SourceCodePro # nixpkgs: nerd-fonts.sauce-code-pro
+        - NerdFontsSymbolsOnly # nixpkgs: nerd-fonts.symbols-only
         - Ubuntu
         - Iosevka
       url-fonts:
