@@ -32,6 +32,13 @@ Both flavours are built from the same `common.yml`; `gaming` is a superset of
   Warehouse, Gearlever, GTK theme extensions) installed system-wide.
 - Container tooling (`podman`, `distrobox`), `just`, `htop`, `tmux`, `vim`,
   WireGuard tools, gvfs, and more (from the base image).
+- A small **CLI baseline** (`bat`, `fd`, `ripgrep`, `eza`, `jq`, `yq`, `ncdu`,
+  archive/media tools, `btop`, `tealdeer`, `gh`, …) so a fresh account is
+  useful before Home Manager runs. Shell-integration tools, dev toolchains and
+  neovim stay in the user layer.
+- **zsh** as the login shell, set for installer-created users on first boot
+  (the binary and `/etc/shells` belong to the image; `~/.zshrc` and plugins
+  belong to Home Manager).
 - **ananicy-cpp** auto-nice daemon, keeping interactive work responsive while
   builds and containers run in the background.
 
@@ -46,7 +53,8 @@ Both flavours are built from the same `common.yml`; `gaming` is a superset of
 
 ### Userland
 - **Nix** + flakes with a persistent store (`/nix` backed by `/var/nix`).
-- **Home Manager** for the per-user layer (reusing the author's dotfiles repo).
+- **Home Manager** for the per-user layer (reusing the author's dotfiles repo),
+  including `~/.zshrc` and the shell plugins for the system-provided zsh.
 - **Homebrew** for Linuxbrew packages.
 - **topgrade** to update everything in one shot.
 

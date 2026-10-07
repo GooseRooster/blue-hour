@@ -33,7 +33,7 @@ describes the intended end-state, not the migration.
 | `modules/core/kernel.nix` | stock Fedora kernel (decided; no custom kernel for now) |
 | `modules/core/perf.nix` (sysctls, I/O scheduler, system76-scheduler) | `files` (sysctl + udev rules), `dnf` (ananicy-cpp COPR) |
 | `modules/core/nix.nix` (flakes, trusted-users, allowUnfree) | `dnf` (`nix`, `nix-daemon`), `files` (nix config, `nix.mount`), `systemd` |
-| `modules/core/users.nix` | *dropped* — installer handles users |
+| `modules/core/users.nix` | *accounts* dropped — installer creates users. The **login shell** is reimplemented in the image: `dnf` (`zsh`), `files` (`/etc/shells`), and the idempotent `blue-hour-set-login-shell.service` (sets `/usr/bin/zsh` for installer-created users before the DM). HM still owns `~/.zshrc`/plugins. |
 | `modules/core/ssh.nix`, `gnupg.nix` | `dnf` + `files` (config), optional |
 | `modules/core/hardening.nix` | *dropped* — Fedora defaults already cover it (see below) |
 | `modules/core/maintenance.nix`, `auto-upgrade.nix` | base `bootc-fetch-apply-updates.timer` + flatpak timers; `dnf` (fwupd) |
@@ -89,7 +89,31 @@ Goal: system-wide Nix with a store that survives image updates.
 ### Phase 2 — Base system
 Base CLI packages, zram, fwupd, CUPS (printing), and sysctl/udev from
 `perf.nix` (minus system76-scheduler → ananicy-cpp, already in `common.yml`).
-Fonts. Timezone/locale/keymap are install-time/session concerns and are **not**
+
+**Shell / login shell.** The image installs `zsh`, ships `/etc/shells` (Fedora
+only lists sh/bash), and enables `blue-hour-set-login-shell.service`
+(`files/system/usr/libexec/blue-hour-set-login-shell`), an idempotent oneshot
+that runs before the display manager and points human users (uid 1000–59999)
+still on bash at `/usr/bin/zsh`. This mirrors NixOS `programs.zsh.enable` +
+`users.users.<primary>.shell` (see the mapping table); HM keeps owning
+`~/.zshrc` and the plugins.
+
+**Baseline CLI.** A small additive "batteries" set (`bat`, `fd`, `ripgrep`,
+`eza`, `tree`, `file`, `jq`, `yq`, `du-dust`, `ncdu`, `unzip`/`zip`/`p7zip`,
+`mediainfo`, `poppler-utils`, `ImageMagick`, `chafa`, `btop`, `tealdeer`,
+`trash-cli`, `rsync`, `gh`, `shellcheck`, `shfmt`) so a fresh account is usable
+before Home Manager runs. This is **additive** — the dotfiles repo keeps its
+own copies (its bundles are portable to other machines). Shell-integration
+tools (`zoxide`, `starship`, `carapace`, `fzf` keybinds), dev toolchains/LSPs
+and neovim stay in HM.
+
+**Fonts.** System-wide: the Nerd Fonts (FiraCode, JetBrainsMono, SauceCodePro,
+SymbolsOnly, Ubuntu, Iosevka) via the `fonts` module, plus Adwaita Sans/Mono via
+`url-fonts` (the GNOME 50 source tarball — no Fedora package; needed by the GSR
+overlay flatpak, which resolves "Adwaita Sans" from `/run/host/fonts`). HM keeps
+its own font packages too.
+
+Timezone/locale/keymap are install-time/session concerns and are **not**
 baked in (the installer writes `/etc/localtime`/`locale.conf`/`vconsole.conf`;
 Sway sets its own layout). The console **font** for Ly is handled in phase 3.
 

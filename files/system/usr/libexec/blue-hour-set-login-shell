@@ -1,0 +1,32 @@
+#!/usr/bin/bash
+# Set zsh as the login shell for human users.
+#
+# blue-hour accounts are created by the graphical installer, so the login shell
+# cannot be declared at build time. This runs from
+# blue-hour-set-login-shell.service on every boot and is idempotent: it only
+# touches normal users (uid 1000-59999) still on the default bash, after which
+# it is a no-op. The binary is owned by the image (dnf `zsh`) and listed in
+# /etc/shells; Home Manager still owns ~/.zshrc and the plugins.
+set -euo pipefail
+
+[ -x /usr/bin/zsh ] || exit 0
+
+# Make the shell an accepted login shell even if the image's /etc/shells was
+# not seeded (Fedora's `setup` package only lists sh/bash). Idempotent.
+if ! grep -qxF /usr/bin/zsh /etc/shells 2>/dev/null; then
+  printf '%s\n' /usr/bin/zsh >> /etc/shells
+fi
+
+while IFS=: read -r user _pass uid _gid _gecos _home shell; do
+  # Human users only: skip system accounts and the nobody/nfsnobody range.
+  [ "$uid" -ge 1000 ] || continue
+  [ "$uid" -lt 60000 ] || continue
+
+  case "$shell" in
+    /bin/bash | /usr/bin/bash)
+      usermod -s /usr/bin/zsh "$user"
+      ;;
+  esac
+done < /etc/passwd
+
+exit 0

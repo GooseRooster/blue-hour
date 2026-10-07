@@ -75,6 +75,12 @@ Notes:
 Boot the ISO, install, then log in and check:
 
 - [ ] Boot reaches Ly; login as the installer-created user.
+- [ ] Login shell is zsh: `echo $SHELL` and `getent passwd "$USER"` end in
+      `/usr/bin/zsh` (and survive an update + reboot).
+- [ ] Baseline CLI is present pre-HM: `bat`, `fd`, `rg`, `eza`, `jq`, `btop`,
+      `tealdeer`, `ncdu` resolve.
+- [ ] Fonts: `fc-list | grep -i nerd` and `fc-list | grep -i adwaita` return
+      the expected families.
 - [ ] Sway starts; `sway --version` is the expected upstream version.
 - [ ] Noctalia shell appears (bar, launcher, OSD).
 - [ ] Audio works (PipeWire): `pactl info`, play a sound.

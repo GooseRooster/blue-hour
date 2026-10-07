@@ -22,6 +22,16 @@ modules:
   # already ships (vim, curl, wget, wl-clipboard, libnotify, ...).
   # TODO(port, phase 2): zram, fwupd, CUPS (printing), sysctl/udev.
   # (timezone/locale/keymap are set at install time; not baked in.)
+  #
+  # zsh is the login shell for every human user. The image owns the binary and
+  # (via the unit below + /etc/shells) the login-shell assignment; Home Manager
+  # still owns ~/.zshrc and the plugins. See docs/port-plan.md phase 2.
+  #
+  # The rest is a small "batteries" baseline so a fresh account is usable
+  # before Home Manager runs. This is deliberately additive: the dotfiles repo
+  # keeps its own copies of these tools (its bundles are meant to travel to
+  # other machines). Shell-integration tools (zoxide/starship/carapace/fzf
+  # keybinds), dev toolchains/LSPs and neovim stay in Home Manager.
   - type: dnf
     install:
       packages:
@@ -29,6 +39,61 @@ modules:
         - ppp
         - playerctl
         - cava
+        # shell + login-shell plumbing (shadow-utils provides usermod)
+        - zsh
+        - shadow-utils
+        # file/text/search
+        - bat
+        - fd-find # binary: fd
+        - ripgrep
+        - eza
+        - tree
+        - file
+        - jq
+        - yq
+        - less
+        # disk usage
+        - du-dust # Fedora binary name; Home Manager's is `dust`
+        - ncdu
+        # archives
+        - unzip
+        - zip
+        - p7zip
+        - p7zip-plugins
+        # media / documents / images
+        - mediainfo
+        - poppler-utils
+        - ImageMagick
+        # terminal niceties
+        - chafa
+        - btop
+        - tealdeer
+        - trash-cli
+        - rsync
+        # general dev-ish utilities
+        - gh
+        - shellcheck
+        - shfmt
+
+  # --- Fonts -------------------------------------------------------------
+  # Session/GTK/Flatpak-wide fonts (NixOS modules/desktop/apps.nix + the HM
+  # baseExtra bundle). Home Manager still installs its own copies so the
+  # dotfiles repo remains portable. Emoji/general fallbacks come from the base
+  # image's google-noto-* set; the patched Nerd Fonts and Adwaita Sans/Mono
+  # (needed by the GSR overlay flatpak, which reads Adwaita Sans from
+  # /run/host/fonts) are added here.
+  - type: fonts
+    fonts:
+      nerd-fonts:
+        - FiraCode
+        - JetBrainsMono
+        - SauceCodePro
+        - SymbolsOnly
+        - Ubuntu
+        - Iosevka
+      url-fonts:
+        - name: Adwaita
+          url: https://download.gnome.org/sources/adwaita-fonts/50/adwaita-fonts-50.0.tar.xz
 
   # --- System baseline Flatpaks ------------------------------------------
   # Ported from nixos-config modules/flatpak/system.nix. The base image already
@@ -103,6 +168,10 @@ modules:
     system:
       enabled:
         - ananicy-cpp.service
+        # Installer-created users start on bash; this idempotent oneshot sets
+        # /usr/bin/zsh as their login shell before the display manager. See
+        # files/system/usr/libexec/blue-hour-set-login-shell.
+        - blue-hour-set-login-shell.service
 
   # --- TODO(port) --------------------------------------------------------
   # phase 3  Desktop stack: Sway (built from source via `stages`), Ly +

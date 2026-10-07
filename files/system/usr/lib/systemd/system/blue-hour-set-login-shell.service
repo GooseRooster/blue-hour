@@ -1,0 +1,14 @@
+[Unit]
+Description=Set zsh as the login shell for human users
+Documentation=https://github.com/GooseRooster/blue-hour
+After=local-fs.target
+Before=ly.service display-manager.service
+ConditionPathExists=/usr/bin/zsh
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/bash /usr/libexec/blue-hour-set-login-shell
+
+[Install]
+WantedBy=multi-user.target

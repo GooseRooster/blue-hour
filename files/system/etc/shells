@@ -1,0 +1,8 @@
+# /etc/shells: valid login shells.
+# Fedora's `setup` package ships only sh/bash; zsh is added by the image as the
+# login shell (see files/system/usr/libexec/blue-hour-set-login-shell).
+/bin/sh
+/bin/bash
+/usr/bin/sh
+/usr/bin/bash
+/usr/bin/zsh

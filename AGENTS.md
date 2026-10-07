@@ -82,6 +82,11 @@ Equivalent `just` tasks: `just containerfile`, `just recipe-dump`, `just build`,
 - Nix inside the image: Fedora `nix` + `nix-daemon` with a persistent
   `/var/nix` → `/nix` bind mount. See `docs/port-plan.md` (phase 1). Do not
   install Nix via the upstream shell installer.
+- zsh is the login shell: the image owns `/usr/bin/zsh` (`dnf`), `/etc/shells`
+  and the `blue-hour-set-login-shell.service` first-boot assignment; Home
+  Manager owns `~/.zshrc` and the plugins. Baseline CLI tools are added
+  **additively** to the image — never remove them from the dotfiles repo, which
+  is intentionally portable to other machines.
 - Secure Boot: the blue-build base signs the kernel/modules with its own MOK key
   (`akmods-blue-build.der`), **not** Fedora's. ISOs must pass
   `--secure-boot-url`/`--enrollment-password bluebuild` (the `just iso` recipe
