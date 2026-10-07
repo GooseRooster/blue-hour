@@ -16,7 +16,7 @@ comes in two flavours that share one common base.
 | Flavour | Image | What it is |
 | --- | --- | --- |
 | **workstation** | `ghcr.io/gooserooster/blue-hour-workstation` | Daily-driver desktop: Sway + Noctalia, the session stack, dev tooling (Nix/Home Manager/Homebrew), baseline Flatpaks. |
-| **gaming** | `ghcr.io/gooserooster/blue-hour-gaming` | Everything in workstation plus the gaming layer: Steam/Wine/Faugus, TuneD latency profile, ananicy-cpp, GPU Screen Recorder, RPMFusion packages. |
+| **gaming** | `ghcr.io/gooserooster/blue-hour-gaming` | Everything in workstation plus the gaming layer: Steam/Wine/Faugus, TuneD latency profile, RPMFusion packages. |
 
 Both flavours are built from the same `common.yml`; `gaming` is a superset of
 `workstation`.
@@ -40,8 +40,9 @@ Both flavours are built from the same `common.yml`; `gaming` is a superset of
 - **Noctalia** shell, with its built-in theming.
 - **Ly** TUI display manager (with its Fedora SELinux policy).
 - PipeWire audio, XDG portals (wlr/gtk/gnome), gnome-keyring, polkit.
-- **GPU Screen Recorder** (the primary screenshot and screen-recording tool),
-  adw-gtk3 + Hatter icon theme, Nerd Fonts.
+- **GPU Screen Recorder** (the primary screenshot and screen-recording tool;
+  hardware-accelerated via AMD/Intel VA-API and HDR-capable), adw-gtk3 + Hatter
+  icon theme, Nerd Fonts.
 
 ### Userland
 - **Nix** + flakes with a persistent store (`/nix` backed by `/var/nix`).

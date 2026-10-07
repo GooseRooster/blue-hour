@@ -102,7 +102,12 @@ Timezone/locale/keymap, base CLI packages, zram, fwupd, sysctl/udev from
   gcr-ssh-agent, udisks2, adw-gtk3, Hatter, nwg-look.
 - **GPU Screen Recorder** (COPR `brycensranch/gpu-screen-recorder-git`,
   fallback Terra; already installed from `common.yml`) with the `gsr-shot`/
-  `gsr-rec` helpers in `files/scripts`.
+  `gsr-rec` helpers in `files/scripts`. GSR uses **VA-API, not VDPAU**; the
+  base already ships the vendor drivers (AMD: fedora-multimedia mesa; Intel:
+  iHD + i965), so no extra packages are needed. Verify with `vainfo` per GPU.
+  The NixOS config's `libva-vdpau-driver`/`libvdpau-va-gl` are VDPAU interop
+  for other apps and are not required (and `mesa-vdpau-drivers` risks a mesa
+  version clash with the base's replaced mesa).
 - **Keyring auto-unlock** — see Phase 8 (oo7).
 
 ### Phase 4 — Flatpaks

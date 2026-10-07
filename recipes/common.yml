@@ -29,7 +29,6 @@ modules:
         - wget
         - curl
         - ppp
-        - sbctl
         - libnotify
         - wl-clipboard
         - playerctl
@@ -85,6 +84,14 @@ modules:
   # GPU Screen Recorder: the primary screenshot + screen-recording tool
   #   (NixOS modules/desktop/gsr.nix). Its gsr-shot/gsr-rec helpers land in
   #   phase 3 (files/scripts); gsr-kms-server capabilities come from the RPM.
+  #   GSR needs VA-API (NOT VDPAU), which the base already provides:
+  #     AMD   -> fedora-multimedia mesa (mesa-va-drivers/mesa-dri-drivers)
+  #     Intel -> libva-intel-media-driver (iHD, Broadwell+) + intel-vaapi-driver (i965)
+  #     plus libva-utils (vainfo) for debugging. No extra driver packages needed.
+  #   Verify per-GPU with `vainfo` in the VM (phase 3). The VDPAU packages from
+  #   graphics.nix (libva-vdpau-driver, libvdpau-va-gl) are interop for other
+  #   apps and are intentionally not added — GSR does not use them, and
+  #   mesa-vdpau-drivers can clash with the base's replaced mesa.
   - type: dnf
     repos:
       copr:
