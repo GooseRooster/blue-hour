@@ -18,19 +18,15 @@ modules:
         destination: /
 
   # --- Base CLI/system packages ------------------------------------------
-  # Ported from nixos-config modules/core/system.nix.
-  # TODO(port, phase 2): timezone/locale/keymap, zram, fwupd, sysctl, udev,
-  # ananicy-cpp (replacing system76-scheduler).
+  # Ported from nixos-config modules/core/system.nix, minus what the base image
+  # already ships (vim, curl, wget, wl-clipboard, libnotify, ...).
+  # TODO(port, phase 2): zram, fwupd, CUPS (printing), sysctl/udev.
+  # (timezone/locale/keymap are set at install time; not baked in.)
   - type: dnf
     install:
       packages:
-        - vim
         - git
-        - wget
-        - curl
         - ppp
-        - libnotify
-        - wl-clipboard
         - playerctl
         - cava
 

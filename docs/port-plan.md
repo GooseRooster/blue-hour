@@ -28,7 +28,7 @@ describes the intended end-state, not the migration.
 
 | NixOS source | BlueBuild target |
 | --- | --- |
-| `modules/core/system.nix` (timezone, locale, keymap, printing, base packages) | `files` (`/etc/locale.conf`, `/etc/vconsole.conf`, `/etc/localtime`), `dnf`, `systemd` |
+| `modules/core/system.nix` (printing, NetworkManager, tpm2, base packages) | `dnf` (cups), `systemd`. Timezone/locale/keymap are set at install time and intentionally not baked in. |
 | `modules/core/hardware.nix` (firmware, microcode, zram) | base image + `files` (zram-generator), `dnf` |
 | `modules/core/kernel.nix` | stock Fedora kernel (decided; no custom kernel for now) |
 | `modules/core/perf.nix` (sysctls, I/O scheduler, system76-scheduler) | `files` (sysctl + udev rules), `dnf` (ananicy-cpp COPR) |
@@ -87,8 +87,11 @@ Goal: system-wide Nix with a store that survives image updates.
 - **Fallback:** rootless single-user (`nix-core`), documented but not preferred.
 
 ### Phase 2 — Base system
-Timezone/locale/keymap, base CLI packages, zram, fwupd, sysctl/udev from
-`perf.nix` (minus system76-scheduler → ananicy-cpp). Fonts.
+Base CLI packages, zram, fwupd, CUPS (printing), and sysctl/udev from
+`perf.nix` (minus system76-scheduler → ananicy-cpp, already in `common.yml`).
+Fonts. Timezone/locale/keymap are install-time/session concerns and are **not**
+baked in (the installer writes `/etc/localtime`/`locale.conf`/`vconsole.conf`;
+Sway sets its own layout). The console **font** for Ly is handled in phase 3.
 
 ### Phase 3 — Desktop
 - **Sway**: `stages` build of the latest upstream release (pinned via Renovate),
@@ -96,7 +99,9 @@ Timezone/locale/keymap, base CLI packages, zram, fwupd, sysctl/udev from
   `/etc/sway/config` and `sway.desktop`; do not install `sway-config-*`.
   Acceptance: `sway --version ≥ 1.12`.
 - **Ly**: `dnf install ly ly-selinux`; enable `ly.service`; ship
-  `/etc/ly/config.ini` (bg/fg/hide_borders/clock/bigclock).
+  `/etc/ly/config.ini` (bg/fg/hide_borders/clock/bigclock) and the terminus
+  console font (via `/etc/vconsole.conf` FONT=) that Ly's TUI/bigclock renders
+  with.
 - **Noctalia**: `dnf install noctalia`; seed `/etc/noctalia/00-*.toml` defaults.
 - **Session plumbing**: pipewire, portals (wlr/gtk/gnome), polkit, keyring,
   gcr-ssh-agent, udisks2, adw-gtk3, Hatter, nwg-look.
