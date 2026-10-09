@@ -29,37 +29,24 @@ modules:
         - ppp
         - playerctl
         - cava
-        # shell + login-shell plumbing (shadow-utils provides usermod)
+        # shell + login-shell plumbing
         - zsh
-        - shadow-utils
         # file/text/search
         - bat
         - fd-find # binary: fd
         - ripgrep
         - eza
-        - tree
-        - file
-        - jq
         - yq
         - less
         # disk usage
         - du-dust # Fedora binary name; Home Manager's is `dust`
         - ncdu
-        # archives
-        - unzip
-        - zip
-        - p7zip
-        - p7zip-plugins
         # media / documents / images
         - mediainfo
-        - poppler-utils
-        - ImageMagick
         # terminal niceties
         - chafa
         - btop
-        - tealdeer
         - trash-cli
-        - rsync
         # general dev-ish utilities
         - gh
         - shellcheck
