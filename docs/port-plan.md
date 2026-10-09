@@ -137,10 +137,13 @@ Deviations from the original plan, all deliberate:
 - **Noctalia**: `dnf install noctalia`; `/etc/noctalia/00-blue-hour-defaults.toml`
   is seeded into each user's `~/.config/noctalia/` by a user-tmpfiles entry
   (Noctalia ignores `/etc/xdg`/`XDG_CONFIG_DIRS`).
-- **Session plumbing**: pipewire/wireplumber, portals (wlr/gtk/gnome + a
-  `sway-portals.conf` mapping, incl. `Secret`→gnome-keyring, and the wlr
-  fuzzel chooser), polkit, gnome-keyring + gcr-ssh-agent, udisks2/udiskie,
-  adw-gtk3-theme. **Hatter** and **autotiling** are not in Fedora:
+- **Session plumbing**: pipewire/wireplumber, portals (**wlr/gtk only** — the
+  NixOS config's `xdg-desktop-portal-gnome` is dropped: it pulls
+  gnome-desktop4/gtk4/libadwaita/graphene and its backends need `org.gnome.Shell`
+  D-Bus that Sway lacks; `Secret` is served by the gnome-keyring backend, not
+  it). A `sway-portals.conf` maps ScreenCast/Screenshot→wlr and
+  Secret→gnome-keyring, with the wlr fuzzel chooser; polkit, gnome-keyring +
+  gcr-ssh-agent, udisks2/udiskie, adw-gtk3-theme. **Hatter** and **autotiling** are not in Fedora:
   `files/scripts/install-hatter.sh` clones the upstream default branch (no
   releases), and `install-autotiling.sh` fetches the latest upstream release at
   build time (fallback pin) — the latter is network-dependent/non-reproducible
