@@ -1,0 +1,28 @@
+---
+# yaml-language-server: $schema=https://schema.blue-build.org/module-list-v1.json
+#
+# base system packages and tunables. Everything here is shared by
+# both flavours; the config files live under files/system (copied to / by the
+# files module in common.yml).
+modules:
+  # Printing, firmware updates compressed swap, maintenance, TPM tooling.
+  - type: dnf
+    install:
+      packages:
+        - zram-generator
+        - fwupd
+        - cups
+        - cups-filters
+        - avahi # cups-browsed uses it for .local network printer discovery
+        - tpm2-tools
+        - btrfsmaintenance
+
+  - type: systemd
+    system:
+      enabled:
+        - cups.socket
+        - cups.service
+        - avahi-daemon.service
+        - avahi-daemon.socket
+        - fwupd-refresh.timer
+        - btrfs-scrub.timer

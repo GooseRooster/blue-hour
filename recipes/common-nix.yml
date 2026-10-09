@@ -1,0 +1,30 @@
+---
+# yaml-language-server: $schema=https://schema.blue-build.org/module-list-v1.json
+#
+# system-wide Nix with a store that survives image updates.
+#
+# bootc presents the root as a read-only composefs, so /nix cannot be created
+# at runtime; it is baked into the image (files/system/nix/.gitkeep) and
+# bind-mounted from the persistent /var/nix. nix-daemon ordering, the store
+# subdirs (tmpfiles) and the SELinux story live with the files under
+# files/system.
+modules:
+  # nix supplies nix-core + nix-filesystem (the /nix layout and the nixbld
+  # sysusers), nix-daemon the systemd service/socket. Fedora 44's package
+  # dropped the old ostree/container Conflicts, so this is the supported
+  # multi-user path. Flakes are enabled in the package's /etc/nix/nix.conf;
+  # trusted-users is deliberately left at the default (root) — the primary
+  # account is already admin and does not need daemon-level substitutes.
+  - type: dnf
+    install:
+      packages:
+        - nix
+        - nix-daemon
+
+  - type: systemd
+    system:
+      enabled:
+        - nix.mount
+        - var-nix.service
+        - nix-daemon.service
+        - nix-daemon.socket

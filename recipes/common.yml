@@ -20,18 +20,8 @@ modules:
   # --- Base CLI/system packages ------------------------------------------
   # Ported from nixos-config modules/core/system.nix, minus what the base image
   # already ships (vim, curl, wget, wl-clipboard, libnotify, ...).
-  # TODO(port, phase 2): zram, fwupd, CUPS (printing), sysctl/udev.
-  # (timezone/locale/keymap are set at install time; not baked in.)
-  #
-  # zsh is the login shell for every human user. The image owns the binary and
-  # (via the unit below + /etc/shells) the login-shell assignment; Home Manager
-  # still owns ~/.zshrc and the plugins. See docs/port-plan.md phase 2.
-  #
-  # The rest is a small "batteries" baseline so a fresh account is usable
-  # before Home Manager runs. This is deliberately additive: the dotfiles repo
-  # keeps its own copies of these tools (its bundles are meant to travel to
-  # other machines). Shell-integration tools (zoxide/starship/carapace/fzf
-  # keybinds), dev toolchains/LSPs and neovim stay in Home Manager.
+  # zram, fwupd, CUPS, sysctl/udev live in common-system.yml.
+  # zsh is the login shell for every human user.
   - type: dnf
     install:
       packages:
@@ -76,12 +66,6 @@ modules:
         - shfmt
 
   # --- Fonts -------------------------------------------------------------
-  # Session/GTK/Flatpak-wide fonts (NixOS modules/desktop/apps.nix + the HM
-  # baseExtra bundle). Home Manager still installs its own copies so the
-  # dotfiles repo remains portable. Emoji/general fallbacks come from the base
-  # image's google-noto-* set; the patched Nerd Fonts and Adwaita Sans/Mono
-  # (needed by the GSR overlay flatpak, which reads Adwaita Sans from
-  # /run/host/fonts) are added here.
   - type: fonts
     fonts:
       # Names are nerd-fonts release asset basenames (see the ryanoasis/
@@ -99,7 +83,7 @@ modules:
           url: https://download.gnome.org/sources/adwaita-fonts/50/adwaita-fonts-50.0.tar.xz
 
   # --- System baseline Flatpaks ------------------------------------------
-  # Ported from nixos-config modules/flatpak/system.nix. The base image already
+  # The base image already
   # sets up the Flathub remote; this only installs the baseline set.
   - type: default-flatpaks
     configurations:
@@ -141,10 +125,8 @@ modules:
       - scope: user
 
   # --- Tuned system daemons (both flavours) ------------------------------
-  # ananicy-cpp: eBPF auto-nice daemon. Replaces the NixOS config's
-  #   system76-scheduler (modules/core/perf.nix) — keeps interactive work
-  #   responsive while builds/containers run in the background. Official
-  #   CachyOS port; disable `ananicy-cpp.service` if a rule misbehaves.
+  # ananicy-cpp: eBPF auto-nice daemon.
+  #
   # GPU Screen Recorder: the primary screenshot + screen-recording tool
   #   (NixOS modules/desktop/gsr.nix). Its gsr-shot/gsr-rec helpers land in
   #   phase 3 (files/scripts); gsr-kms-server capabilities come from the RPM.
@@ -176,12 +158,16 @@ modules:
         # files/system/usr/libexec/blue-hour-set-login-shell.
         - blue-hour-set-login-shell.service
 
+  # --- Phase includes (shared by both flavours) --------------------------
+  # common-nix.yml   phase 1: system-wide Nix with a persistent store.
+  # common-system.yml phase 2: zram, fwupd, CUPS, perf sysctl/udev/limits.
+  - from-file: common-nix.yml
+  - from-file: common-system.yml
+
   # --- TODO(port) --------------------------------------------------------
   # phase 3  Desktop stack: Sway (built from source via `stages`), Ly +
   #          ly-selinux, Noctalia, pipewire, portals, keyring, fonts,
   #          adw-gtk3 + Hatter, nwg-look, gsr-shot/gsr-rec helpers.
-  # phase 1  Nix: dnf install nix nix-daemon, /var/nix -> /nix bind mount,
-  #          nix-daemon ordering, SELinux.
   # phase 5  TuneD + tuned-ppd with a shared power-profile mapping.
   # phase 6  Homebrew (`brew` module), topgrade, Zen Browser (system).
   # phase 7  os-release branding, justfiles for `ujust`-style update commands.
