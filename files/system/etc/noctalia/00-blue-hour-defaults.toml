@@ -1,0 +1,13 @@
+# Noctalia v5 default for blue-hour.
+#
+# Noctalia has no system-wide config layer: it reads only per-user *.toml files
+# from ~/.config/noctalia/ (sorted, deep-merged) and ignores /etc/xdg and
+# XDG_CONFIG_DIRS. This file is therefore seeded into each user's config dir as
+# a low-priority "00-" default by usr/share/user-tmpfiles.d/blue-hour-desktop.conf;
+# a user's own config.toml and the app-managed
+# ~/.local/state/noctalia/settings.toml still win.
+#
+# Noctalia ships a native polkit authentication agent, but it is off by default.
+# Turn it on so pkexec and GUI authentication work in the Sway session.
+[shell]
+polkit_agent = true

@@ -1,0 +1,14 @@
+#!/usr/bin/bash
+# Launch a terminal app in Foot with zsh's login environment bootstrapped.
+#
+# Ported from nixos-config modules/desktop/terminal.nix. Foot's positional
+# command replaces the configured shell, so a bare `foot nvim` would skip shell
+# init; wrapping in `zsh -l -c` restores login env. `-e` is accepted for xterm
+# compatibility, so the familiar `foot -e nvim` form still works.
+set -euo pipefail
+
+if [ "$#" -eq 0 ]; then
+  exec /usr/bin/foot
+fi
+
+exec /usr/bin/foot -e /usr/bin/zsh -l -c "$*"

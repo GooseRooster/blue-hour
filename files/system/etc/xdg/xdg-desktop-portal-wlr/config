@@ -1,0 +1,8 @@
+# xdg-desktop-portal-wlr source chooser.
+#
+# Browsers request monitor+window (kAnyScreenContent), which makes xdpw skip
+# its slurp-only fallback and require a dmenu-style chooser; without one the
+# share fails ("no output found"). Ported from nixos-config sway.nix.
+[screencast]
+chooser_type=dmenu
+chooser_cmd=fuzzel -d -l 10 -p "Select a source to share:"

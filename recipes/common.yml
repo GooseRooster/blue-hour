@@ -148,13 +148,15 @@ modules:
   # --- Phase includes (shared by both flavours) --------------------------
   # common-nix.yml   phase 1: system-wide Nix with a persistent store.
   # common-system.yml phase 2: zram, fwupd, CUPS, perf sysctl/udev/limits.
+  # common-desktop.yml phase 3: Sway + Noctalia session stack.
   - from-file: common-nix.yml
   - from-file: common-system.yml
+  - from-file: common-desktop.yml
 
   # --- TODO(port) --------------------------------------------------------
-  # phase 3  Desktop stack: Sway (built from source via `stages`), Ly +
-  #          ly-selinux, Noctalia, pipewire, portals, keyring, fonts,
-  #          adw-gtk3 + Hatter, nwg-look, gsr-shot/gsr-rec helpers.
+  # phase 4  System Flatpaks (already scaffolded above; review against
+  #          modules/flatpak/system.nix).
   # phase 5  TuneD + tuned-ppd with a shared power-profile mapping.
   # phase 6  Homebrew (`brew` module), topgrade, Zen Browser (system).
   # phase 7  os-release branding, justfiles for `ujust`-style update commands.
+  # phase 8  Staged-update notification; keyring auto-unlock (oo7 on F45).

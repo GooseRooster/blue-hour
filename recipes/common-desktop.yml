@@ -1,0 +1,124 @@
+---
+# yaml-language-server: $schema=https://schema.blue-build.org/module-list-v1.json
+#
+# Phase 3 — desktop session stack (Sway + Noctalia), shared by every flavour.
+# Ported from nixos-config modules/desktop/*. The config files live under
+# files/system (copied to / by the `files` module) and files/scripts.
+#
+# Sway is currently Fedora's 1.11 package (F44); the upstream-source build
+# (>=1.12) is deferred. See docs/port-plan.md phase 3.
+#
+# RPM-owned config conflict: ly (and the sway config package) install their own
+# /etc files. The first `files` module in common.yml runs before these RPMs, so
+# this include ends with a second `files` module that re-applies files/system
+# *after* the installs, letting the image's config win.
+modules:
+  # --- Desktop packages --------------------------------------------------
+  - type: dnf
+    install:
+      packages:
+        # Compositor + session. `sway` hard-Requires a `sway-config` provider;
+        # pin the upstream one explicitly and override its config below.
+        - sway
+        - sway-config-upstream
+        - xorg-x11-server-Xwayland
+        - xorg-x11-xauth
+
+        # Display manager (Ly TUI) + console font it renders with.
+        - ly
+        - terminus-fonts-console
+
+        # Noctalia shell.
+        - noctalia
+
+        # Session plumbing.
+        - pipewire
+        - pipewire-pulseaudio
+        - pipewire-alsa
+        - wireplumber
+        - pulseaudio-utils # pactl
+        - rtkit
+        - upower
+        - polkit
+        - gnome-keyring
+        - gnome-keyring-pam
+        - gcr # gcr-ssh-agent
+        - libsecret # secret-tool
+        - udisks2
+        - udiskie
+        - xdg-desktop-portal
+        - xdg-desktop-portal-wlr
+        - xdg-desktop-portal-gtk
+        - xdg-desktop-portal-gnome
+        - dbus-tools # dbus-update-activation-environment
+
+        # Session apps / session-default bits.
+        - foot
+        - brightnessctl
+        - fuzzel # xdg-desktop-portal-wlr source chooser
+        - grim
+        - slurp
+        - python3-i3ipc # runtime dep of the vendored autotiling
+        - adw-gtk3-theme
+
+  # --- nwg-look ----------------------------------------------------------
+  # GTK settings editor for wlroots sessions. Not in Fedora; from the
+  # nwg-shell COPR. Installed last so the COPR's coprdep repos (notably
+  # tofik/sway) cannot influence the Fedora package selection above — cleanup
+  # then removes the repo again. We deliberately do not pull tofik/sway's
+  # xcur2png suggestion; nwg-look works without it.
+  - type: dnf
+    repos:
+      cleanup: true
+      copr:
+        - tofik/nwg-shell
+    install:
+      packages:
+        - nwg-look
+
+  # --- Vendored / source-built helpers ----------------------------------
+  # install-autotiling.sh: latest upstream GitHub release (friendlier to
+  # freshness than a committed copy). install-hatter.sh: Hatter icon theme
+  # (no Fedora package, no upstream releases -> default branch).
+  - type: script
+    scripts:
+      - install-autotiling.sh
+      - install-hatter.sh
+
+  # --- systemd units -----------------------------------------------------
+  - type: systemd
+    system:
+      enabled:
+        - ly@tty2.service
+        - udisks2.service
+        - rtkit-daemon.service
+        - upower.service
+      disabled:
+        # ly@tty2 Conflicts=getty@tty2, but disable it explicitly as upstream
+        # recommends so the two never race.
+        - getty@tty2.service
+    user:
+      enabled:
+        - pipewire.service
+        - pipewire.socket
+        - pipewire-pulse.service
+        - pipewire-pulse.socket
+        - wireplumber.service
+        - gcr-ssh-agent.socket
+
+  # --- Re-apply image /etc after the RPM installs above ------------------
+  - type: files
+    files:
+      - source: system
+        destination: /
+
+  # --- Fix up executable bits on the vendored /usr/bin helpers -----------
+  - type: script
+    snippets:
+      - >-
+        chmod 0755
+        /usr/bin/blue-hour-sway
+        /usr/bin/termapp
+        /usr/bin/gsr-shot
+        /usr/bin/gsr-rec
+        /usr/bin/autotiling

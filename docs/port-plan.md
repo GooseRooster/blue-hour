@@ -117,18 +117,42 @@ Timezone/locale/keymap are install-time/session concerns and are **not**
 baked in (the installer writes `/etc/localtime`/`locale.conf`/`vconsole.conf`;
 Sway sets its own layout). The console **font** for Ly is handled in phase 3.
 
-### Phase 3 — Desktop
-- **Sway**: `stages` build of the latest upstream release (pinned via Renovate),
-  compiled against Fedora's wlroots and `copy`ed into `/usr`. Ship our own
-  `/etc/sway/config` and `sway.desktop`; do not install `sway-config-*`.
-  Acceptance: `sway --version ≥ 1.12`.
-- **Ly**: `dnf install ly ly-selinux`; enable `ly.service`; ship
-  `/etc/ly/config.ini` (bg/fg/hide_borders/clock/bigclock) and the terminus
-  console font (via `/etc/vconsole.conf` FONT=) that Ly's TUI/bigclock renders
-  with.
-- **Noctalia**: `dnf install noctalia`; seed `/etc/noctalia/00-*.toml` defaults.
-- **Session plumbing**: pipewire, portals (wlr/gtk/gnome), polkit, keyring,
-  gcr-ssh-agent, udisks2, adw-gtk3, Hatter, nwg-look.
+### Phase 3 — Desktop ✅ (shipped, with deviations)
+Implemented in `recipes/common-desktop.yml` + `files/system` + `files/scripts`.
+Deviations from the original plan, all deliberate:
+
+- **Sway: Fedora's 1.11 package for now, not an upstream source build.** F44
+  ships wlroots 0.20.2 but only sway 1.11, so the `≥1.12` acceptance is not yet
+  met. `sway` hard-`Requires: sway-config`, so `sway-config-upstream` is
+  installed and overridden by our `/etc/sway/config`; the source build (via
+  `stages`, against Fedora's wlroots, pinned) remains the follow-up.
+- **Ly: no `ly-selinux` (it does not exist) and the unit is `ly@tty2.service`,
+  not `ly.service`.** Fedora 44 ships the Zig rewrite **1.4.0** (the NixOS
+  target is **1.5** — a one-minor downgrade, accepted). `/etc/ly/config.ini`
+  keeps the 0xSSRRGGBB styling (`bg`/`fg`/`error_fg`/`hide_borders`/`clock`/
+  `bigclock`); validate the keys against the package default in the VM. Add an
+  `audit2allow`-generated module only if the VM logs AVCs. Terminus console
+  font via `/etc/vconsole.conf` (`FONT=ter-u28n`); if the installer's
+  `/etc/vconsole.conf` shadows it, use a `ly-kmsconvt@tty2` drop-in.
+- **Noctalia**: `dnf install noctalia`; `/etc/noctalia/00-blue-hour-defaults.toml`
+  is seeded into each user's `~/.config/noctalia/` by a user-tmpfiles entry
+  (Noctalia ignores `/etc/xdg`/`XDG_CONFIG_DIRS`).
+- **Session plumbing**: pipewire/wireplumber, portals (wlr/gtk/gnome + a
+  `sway-portals.conf` mapping, incl. `Secret`→gnome-keyring, and the wlr
+  fuzzel chooser), polkit, gnome-keyring + gcr-ssh-agent, udisks2/udiskie,
+  adw-gtk3-theme. **Hatter** and **autotiling** are not in Fedora:
+  `files/scripts/install-hatter.sh` clones the upstream default branch (no
+  releases), and `install-autotiling.sh` fetches the latest upstream release at
+  build time (fallback pin) — the latter is network-dependent/non-reproducible
+  by design. **nwg-look** comes from the `tofik/nwg-shell` COPR (no
+  `tofik/sway`, so `xcur2png` is dropped). Terminal is foot + the `termapp`
+  wrapper.
+- **Session env**: a `blue-hour-sway` wrapper + `/etc/sway/config.d/…` import
+  vars into systemd/D-Bus; `WLR_RENDERER=vulkan` is left off (unreliable under
+  QEMU virtio-gpu) and documented for hardware.
+- **UWSM**: deliberately deferred — not packaged in Fedora and no in-ecosystem
+  precedent; revisit as a deliberate session-management change (it would also
+  let Noctalia run as a systemd user unit).
 - **GPU Screen Recorder** (COPR `brycensranch/gpu-screen-recorder-git`,
   fallback Terra; already installed from `common.yml`) with the `gsr-shot`/
   `gsr-rec` helpers in `files/scripts`. GSR uses **VA-API, not VDPAU**; the
@@ -193,9 +217,13 @@ branding, cosign signing (base + recipe `signing` last), `justfiles` for
 ## Open risks
 
 1. Nix `/nix` persistence + SELinux + daemon ordering (phase 1).
-2. Sway-from-source must track a wlroots-compatible release; build wlroots too
-   if upstream outpaces Fedora's.
-3. RPMFusion vs negativo17 coexistence for Steam/Wine/Faugus.
-4. GSR `gsr-kms-server` capability behaviour from the RPM (promptless capture).
-5. Noctalia v5 Fedora package is currently a beta in F44 updates.
-6. oo7 migration is one-way; sequence the F45 bump carefully.
+2. Sway-from-source (deferred): F44 has wlroots 0.20.2 but sway 1.11, so the
+   phase-3 `≥1.12` target needs a `stages` build (against Fedora's wlroots)
+   when we come back to it.
+3. Ly: F44 ships 1.4.0 vs the 1.5 target, and no SELinux policy — verify
+   `config.ini` keys and watch for AVCs in the VM.
+4. `nwg-look` depends on the third-party `tofik/nwg-shell` COPR.
+5. RPMFusion vs negativo17 coexistence for Steam/Wine/Faugus.
+6. GSR `gsr-kms-server` capability behaviour from the RPM (promptless capture).
+7. Noctalia v5 Fedora package is currently a beta in F44 updates.
+8. oo7 migration is one-way; sequence the F45 bump carefully.

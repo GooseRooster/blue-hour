@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=Sway
+Comment=An i3-compatible Wayland compositor (blue-hour session)
+Exec=blue-hour-sway
+TryExec=blue-hour-sway
+Type=Application
+DesktopNames=sway

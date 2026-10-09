@@ -1,0 +1,63 @@
+#!/usr/bin/bash
+# Screenshot via GPU Screen Recorder (HDR-correct, unlike grim).
+#
+# Ported from nixos-config modules/desktop/gsr.nix.
+#   gsr-shot [region|full] [clip|edit]
+# clip copies the PNG to the clipboard; edit hands it to Gradia when installed.
+
+set -euo pipefail
+
+mode="${1:-region}"   # region | full
+action="${2:-clip}"   # clip | edit
+
+dir="${XDG_PICTURES_DIR:-$HOME/Pictures}/Screenshots"
+mkdir -p "$dir"
+file="$dir/Screenshot_$(date +%Y-%m-%d_%H-%M-%S).png"
+
+case "$mode" in
+  region)
+    # slurp's default format is "X,Y WxH"; GSR wants "WxH+X+Y".
+    region="$(slurp -f '%wx%h+%x+%y')" || exit 0
+    [ -n "$region" ] || exit 0
+    src=(-w "$region")
+    ;;
+  full)
+    src=(-w screen)
+    ;;
+  *)
+    echo "usage: gsr-shot [region|full] [clip|edit]" >&2
+    exit 2
+    ;;
+esac
+
+# Capture stderr so a failed run can report the real reason. `set -e` would
+# otherwise abort before notifying the user.
+if ! err="$(gpu-screen-recorder "${src[@]}" -o "$file" 2>&1 >/dev/null)"; then
+  rm -f "$file"
+  notify-send -a "Screenshot" -u critical "Screenshot failed" \
+    "${err:-GPU Screen Recorder returned an error}"
+  exit 1
+fi
+
+if [ ! -s "$file" ]; then
+  notify-send -a "Screenshot" -u critical "Screenshot failed" \
+    "No image was written to $file"
+  exit 1
+fi
+
+case "$action" in
+  clip)
+    wl-copy --type image/png < "$file"
+    notify-send -a "Screenshot" -i "$file" \
+      "Screenshot copied to clipboard" "$(basename "$file")"
+    ;;
+  edit)
+    # Gradia is part of the system baseline; degrade gracefully if absent.
+    if flatpak info be.alexandervanhee.gradia >/dev/null 2>&1; then
+      flatpak run be.alexandervanhee.gradia "$file"
+    else
+      notify-send -a "Screenshot" "Image editor not installed" \
+        "Install be.alexandervanhee.gradia to edit screenshots"
+    fi
+    ;;
+esac
