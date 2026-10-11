@@ -71,12 +71,19 @@ vm-disk flavour=default_flavour *args:
 # CLI as your user but pre-authenticate sudo first (the `sudo -v` prompts in
 # your terminal; bluebuild's internal `sudo podman` then uses the cached
 # timestamp and no root-owned files land in the repo).
+#
+# The ISO pre-creates no user and sets no root password: account setup is
+# Anaconda's job. The variant controls when it happens -- `server` (default)
+# and `kinoite` ask at install time, while `silverblue` defers to first boot,
+# which never runs on this image (no initial-setup/GNOME) and leaves a locked
+# root-only system. Override with `just iso <flavour> <variant>`.
 
 # Build the offline ISO from a published image.
-iso flavour=default_flavour:
+iso flavour=default_flavour variant="server":
     sudo -v
     bluebuild generate-iso \
         --iso-name blue-hour-{{flavour}}.iso \
+        --variant {{variant}} \
         --secure-boot-url {{secure_boot_url}} \
         --enrollment-password {{enrollment_password}} \
         image ghcr.io/gooserooster/blue-hour-{{flavour}}:latest
