@@ -79,9 +79,13 @@ Goal: system-wide Nix with a store that survives image updates.
   (`What=/var/nix`, `Where=/nix`, `Type=none`, `Options=bind`).
 - Ensure `nix-daemon.service`/`.socket` start after `nix.mount` (drop-in with
   `RequiresMountsFor=/nix`).
-- SELinux: rely on the Fedora package's policy; verify contexts with
-  `restorecon -RF /nix` and `ausearch -m avc` in the VM. Add `semanage fcontext`
-  rules only if the package's policy is insufficient.
+- SELinux: Fedora's `selinux-policy` and the `nix` RPM ship **no Nix module**,
+  so `/nix` (the `/var/nix` bind) is unlabeled (`default_t`) and systemd is
+  denied creating `/nix/var/nix/daemon-socket/socket`. `files/scripts/nix-selinux.sh`
+  registers the nix-community `nix.fc` file contexts (`semanage fcontext`), and
+  the `z` entry in `blue-hour-nix.conf` relabels the daemon-socket dir every boot
+  (a build-time relabel would be hidden by the fresh bind mount). Verify with
+  `ls -Z /nix/var/nix/daemon-socket` and `ausearch -m avc -ts boot` in the VM.
 - Acceptance: after an update+rebase, `nix run nixpkgs#hello` still works and
   `/nix/store` is on `/var/nix`.
 - **Fallback:** rootless single-user (`nix-core`), documented but not preferred.
@@ -135,9 +139,15 @@ Deviations from the original plan, all deliberate:
   `setup_cmd = /bin/sh /etc/ly/setup.sh` patch — the package installs
   `setup.sh` `0644` and shebang-stripped, so the bare compiled default would be
   non-executable and every session would die with EACCES. Re-check the
-  `ly.spec` `%install` `sed`s on every base bump. Add an `audit2allow`-generated
-  module only if the VM logs AVCs; verify the F44 `%post` `xdm_exec_t` label on
-  `/usr/bin/ly` survives the bootc build (`ls -Z /usr/bin/ly`). Terminus console
+  `ly.spec` `%install` `sed`s on every base bump. The file also sets
+  `session_log = null` and `save = false`: Ly otherwise creates
+  `~/ly-session.log` (relative default) while still in the display-manager
+  SELinux domain, and `executeCmd()` treats that denial as fatal — the session
+  aborts with `AccessDenied` before the compositor launches (upstream #822).
+  `save` (last user/session in `/etc/ly/save.txt`) is denied for the same
+  reason but non-fatal. Add an `audit2allow`-generated module only if the VM
+  logs AVCs; verify the F44 `%post` `xdm_exec_t` label on `/usr/bin/ly`
+  survives the bootc build (`ls -Z /usr/bin/ly`). Terminus console
   font via `/etc/vconsole.conf` (`FONT=ter-u28n`); if the installer's
   `/etc/vconsole.conf` shadows it, use a `ly-kmsconvt@tty2` drop-in.
 - **Noctalia**: `dnf install noctalia`; `/etc/noctalia/00-blue-hour-defaults.toml`

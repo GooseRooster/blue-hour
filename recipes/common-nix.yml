@@ -20,6 +20,18 @@ modules:
       packages:
         - nix
         - nix-daemon
+        # semanage, used by nix-selinux.sh to register the /nix file contexts.
+        # Fedora ships no Nix SELinux policy, so we provide the contexts
+        # ourselves (see that script and docs/port-plan.md phase 1).
+        - policycoreutils-python-utils
+
+  # --- SELinux file contexts for /nix ------------------------------------
+  # nix-selinux.sh applies the nix-community nix.fc contexts via semanage; the
+  # runtime daemon-socket relabel is done by the tmpfiles `z` entry (the store
+  # is a fresh bind mount at boot, so a one-shot build relabel would not stick).
+  - type: script
+    scripts:
+      - nix-selinux.sh
 
   - type: systemd
     system:
