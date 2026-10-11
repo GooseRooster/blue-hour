@@ -33,9 +33,15 @@ bluebuild build recipes/workstation.yml
 ## 3. Generate an offline ISO from the local recipe
 
 ```sh
-bluebuild generate-iso --iso-name blue-hour-workstation.iso recipe recipes/workstation.yml
+sudo bluebuild generate-iso --iso-name blue-hour-workstation.iso recipe recipes/workstation.yml
 # or: just iso workstation
 ```
+
+`generate-iso` runs the installer container with `--privileged`, so it needs
+root (BlueBuild otherwise prepends `sudo` to the `podman` call). Run it from a
+real terminal so the password prompt is visible; from a non-interactive shell,
+`sudo -v` first. If a graphical `SUDO_ASKPASS` is set but not working, `unset
+SUDO_ASKPASS` so sudo prompts on the tty.
 
 Use `recipe` (not `image`) so you are testing the working tree, not a published
 build.

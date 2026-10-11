@@ -26,8 +26,12 @@ build flavour=default_flavour:
     bluebuild build recipes/{{flavour}}.yml
 
 # Build an offline ISO from a flavour recipe (embeds the Secure Boot key).
+# `generate-iso` runs the installer container with --privileged, so it needs
+# root: the leading sudo prompts once, up front, instead of late in the build
+# where the prompt is not visible and sudo times out. Resolve the CLI path so
+# it works from the nix dev shell (bluebuild is not in root's PATH).
 iso flavour=default_flavour:
-    bluebuild generate-iso \
+    sudo "$(command -v bluebuild)" generate-iso \
         --iso-name blue-hour-{{flavour}}.iso \
         --secure-boot-url {{secure_boot_url}} \
         --enrollment-password {{enrollment_password}} \
