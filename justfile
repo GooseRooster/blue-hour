@@ -24,9 +24,6 @@ installer_image := "ghcr.io/jasonn3/build-container-installer:v1.5.0"
 # latest -> currently Fedora 44).
 iso_version := "44"
 
-# Anaconda overrides injected by `iso-direct`. See the file's header.
-iso_template := "iso/blue-hour-anaconda.tmpl"
-
 # List available tasks.
 default:
     @just --list
@@ -87,10 +84,11 @@ vm-disk flavour=default_flavour *args:
 # timestamp and no root-owned files land in the repo).
 #
 # The ISO pre-creates no user and sets no root password: account setup is
-# Anaconda's job. The variant controls when it happens -- `server` (default)
-# and `kinoite` ask at install time, while `silverblue` defers to first boot,
-# which never runs on this image (no initial-setup/GNOME) and leaves a locked
-# root-only system. Override with `just iso <flavour> <variant>`.
+# Anaconda's job. Of the variants the CLI allows, only `server` shows the
+# account spokes -- but it forces XFS-on-LVM. `kinoite`/`silverblue` hide the
+# spokes and defer to a first-boot initial-setup this image doesn't ship, which
+# leaves a locked root-only system. For a generic profile (spokes + Btrfs), use
+# `just iso-direct` instead.
 
 # Build the offline ISO from a published image.
 iso flavour=default_flavour variant="server":
@@ -106,23 +104,25 @@ iso flavour=default_flavour variant="server":
 # of through `bluebuild generate-iso`. This exposes the knobs the CLI hides:
 #   * an explicit VERSION for the installer runtime (bluebuild auto-detects it
 #     from the image; the builder's own default is a stale F39);
-#   * any installer VARIANT (the CLI only allows kinoite/silverblue/server);
-#   * ADDITIONAL_TEMPLATES, used here to inject iso/blue-hour-anaconda.tmpl.
-# That template forces the base Fedora installer theme and always shows the
-# User/Root spokes, so account setup happens at install time regardless of the
-# variant's Anaconda profile. Requires a *published* image (image mode), same
-# as `just iso`. Extra make variables may be appended, e.g.
-#   just iso-direct workstation "" 44 iso/blue-hour-anaconda.tmpl WEB_UI=true
+#   * an empty VARIANT, which the CLI cannot express (it only allows
+#     kinoite/silverblue/server). The builder's own default is Server.
+# An empty VARIANT makes lorax install plain `fedora-release`, so Anaconda picks
+# the generic `fedora` profile: base Fedora theme, visible User/Root spokes and
+# Btrfs (zstd:1) by default. Server shows the spokes but forces XFS-on-LVM;
+# kinoite/silverblue hide the spokes (deferred to a first-boot initial-setup
+# this image doesn't ship). Pass a variant to override, e.g.
+#   just iso-direct workstation server
+# Extra make variables may be appended, e.g.
+#   just iso-direct workstation "" 44 WEB_UI=true
 #
-# By default no VARIANT is passed: the builder uses its own default (Server),
-# and the injected template overrides that profile's theme and storage, so the
-# result is the base Fedora look on Btrfs regardless. Pass a variant to override
-# (e.g. `just iso-direct workstation kinoite`).
+# The output ISO is removed first: xorriso refuses to reuse a non-empty outdev,
+# and a previous `just iso` leaves a root-owned ISO at the same path.
 #
-# Build the offline ISO directly (base Fedora installer theme + account spokes).
-iso-direct flavour=default_flavour variant="" version=iso_version template=iso_template *extra:
+# Build the offline ISO directly (generic Fedora profile: spokes + Btrfs).
+iso-direct flavour=default_flavour variant="" version=iso_version *extra:
     #!/usr/bin/env bash
     set -euo pipefail
+    rm -f "$PWD/blue-hour-{{flavour}}.iso" "$PWD/blue-hour-{{flavour}}.iso-CHECKSUM"
     sudo -v
     args=(
         ISO_NAME=build/blue-hour-{{flavour}}.iso
@@ -134,19 +134,18 @@ iso-direct flavour=default_flavour variant="" version=iso_version template=iso_t
         IMAGE_TAG=latest
         VERSION={{version}}
     )
-    # Pass VARIANT only when set; otherwise the builder's default (Server)
-    # applies and the injected template normalises theme/storage/spokes.
+    # The builder expands `-t $(VARIANT)` unquoted, so a truly empty value
+    # leaves `-t` with no argument and breaks lorax. Pass the two literal quotes
+    # instead: the shell hands lorax a real empty argument, selecting the
+    # generic profile.
     if [ -n "{{variant}}" ]; then
         args+=(VARIANT={{variant}})
-    fi
-    mounts=(-v "$PWD:/build-container-installer/build" -v dnf-cache:/cache/dnf)
-    if [ -n "{{template}}" ]; then
-        mounts+=(-v "$PWD/{{template}}:/blue-hour-anaconda.tmpl:ro")
-        args+=(ADDITIONAL_TEMPLATES=/blue-hour-anaconda.tmpl)
+    else
+        args+=("VARIANT=''")
     fi
     sudo podman run --rm -it --privileged --pull=always \
         --security-opt label=type:unconfined_t \
-        "${mounts[@]}" \
+        -v "$PWD:/build-container-installer/build" -v dnf-cache:/cache/dnf \
         {{installer_image}} \
         "${args[@]}" {{extra}}
 

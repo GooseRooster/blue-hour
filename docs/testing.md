@@ -66,32 +66,34 @@ qemu-system-x86_64 \
 ## 4. Generate an installer ISO (optional)
 
 The offline ISO embeds BlueBuild's MOK key and runs Anaconda, matching a real
-install. Both builders below require a **published image** (CI, or `bluebuild
-build --push`); the local `generate-iso recipe` path is broken (see step 3).
+install. Both builders require a **published image** (CI, or `bluebuild build
+--push`); the local `generate-iso recipe` path is broken (see step 3).
+
+Anaconda picks its profile from the *installer* runtime's `/etc/os-release`,
+which `lorax --variant` sets via `fedora-release-<variant>`: `server` shows the
+account spokes but forces XFS-on-LVM; `kinoite`/`silverblue` hide the spokes
+(deferred to a first-boot initial-setup this image does not ship); an empty
+variant selects the generic `fedora` profile (spokes + Btrfs).
 
 ### 4.1 `just iso-direct` (recommended)
 
-`just iso` (the BlueBuild CLI wrapper) can only select the kinoite, silverblue
-or server installer variant, and the kinoite/silverblue Anaconda profiles
-**hide the User/Root account spokes** — they defer account creation to a
-first-boot initial-setup that this image does not ship, so you land at Ly with
-a locked root and no user. `iso-direct` instead calls the same underlying
-`build-container-installer` image directly and injects
-`iso/blue-hour-anaconda.tmpl`, which forces the base Fedora installer theme,
-reveals the account spokes, and resets storage to the base Fedora default
-(Btrfs + zstd:1, `/` + `/home`). No variant is passed by default, so the result
-is the generic-Fedora install experience.
+`just iso` (the BlueBuild CLI wrapper) can only select kinoite/silverblue/server
+and always passes one of them, so it cannot reach the generic profile.
+`iso-direct` calls the same underlying `build-container-installer` image
+directly and passes an empty `VARIANT` (as literal `''`, because the builder's
+Makefile does not quote `-t $(VARIANT)`), giving the generic Fedora installer:
+base theme, visible User/Root spokes and Btrfs (zstd:1) by default.
 
 ```sh
 sudo -v
-just iso-direct                 # base Fedora theme + Btrfs + user/root spokes
+just iso-direct                 # generic Fedora profile: user/root spokes + Btrfs
 just iso-direct gaming          # other flavour
-# optional overrides: <flavour> <variant> <version> <template> [extra make vars]
-just iso-direct workstation kinoite 44 iso/blue-hour-anaconda.tmpl WEB_UI=true
+# optional overrides: <flavour> <variant> <version> [extra make vars]
+just iso-direct workstation server 44 WEB_UI=true
 ```
 
-The overrides are applied through Anaconda's `/etc/anaconda/conf.d/`, which is
-loaded *after* the selected profile, so they win regardless of variant.
+The output ISO is written to the repo root and removed first, because xorriso
+refuses to reuse a non-empty outdev and a previous `just iso` leaves one there.
 
 ### 4.2 Plain BlueBuild CLI: `just iso`
 
@@ -105,8 +107,8 @@ bluebuild generate-iso --iso-name blue-hour-workstation.iso \
 # or: just iso workstation        (defaults to the server variant)
 ```
 
-Only `--variant server` reliably exposes the account spokes; `kinoite` and
-`silverblue` hide them (see 4.1).
+Only `--variant server` exposes the account spokes on this image, and it
+defaults storage to XFS-on-LVM (see 4.1 for the generic profile).
 
 Both paths run the installer container with `--privileged`, so `sudo podman` is
 used internally. Pre-authenticate with `sudo -v` first: the prompt then appears
@@ -120,7 +122,7 @@ remove it with `just clean`.
 ### 4.3 Keeping the install path in sync across Fedora revisions
 
 `iso-direct` bakes in a few Fedora-version assumptions. Whenever the base image
-moves to a new Fedora release, re-check these (all in `justfile` unless noted):
+moves to a new Fedora release, re-check these (all in `justfile`):
 
 - **`iso_version`** — the release used for the installer runtime (`lorax
   -v/-r`). Keep it equal to the base image's `/usr/lib/os-release` `VERSION_ID`
@@ -129,16 +131,11 @@ moves to a new Fedora release, re-check these (all in `justfile` unless noted):
   pins the same image/tag in `utils/src/constants.rs`
   (`JASONN3_INSTALLER_IMAGE`); bump deliberately and re-test, do not float
   `:latest`.
-- **`iso/blue-hour-anaconda.tmpl`** — assumes these Anaconda option names and
-  paths are unchanged: `[User Interface] custom_stylesheet` / `hidden_spokes`,
-  `[Storage] default_scheme` / `btrfs_compression` / `file_system_type` /
-  `default_partitioning`, and the base stylesheet
-  `/usr/share/anaconda/pixmaps/fedora.css`. Cross-check against the new
-  release's `/etc/anaconda/anaconda.conf` and profile files (upstream `anaconda`
-  repo: `data/conf.d/`, `data/profile.d/*.conf`).
-- **Account spokes** — profiles may change which spokes they hide. Re-run the
-  section-5 smoke check on the ISO and confirm the installer presents "User
-  Creation" and "Root Password".
+- **Profile behaviour** — confirm an empty `VARIANT` still selects the generic
+  `fedora` profile and that it shows the user/root spokes and defaults to Btrfs.
+  Cross-check the new release's `/etc/anaconda/anaconda.conf` and
+  `profile.d/*.conf` (upstream `anaconda` repo: `data/conf.d/`,
+  `data/profile.d/`), then re-run the section-5 smoke check on the ISO.
 
 After a base bump, build the ISO, boot it in QEMU, and confirm the installer
 shows the account spokes and partitions to Btrfs (`lsblk -f` / `findmnt` in the
