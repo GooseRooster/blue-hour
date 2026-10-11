@@ -13,6 +13,20 @@ enrollment_password := "bluebuild"
 # container image (no registry needed). Used by `just disk`.
 bib_image := "quay.io/centos-bootc/bootc-image-builder:latest"
 
+# build-container-installer: the third-party ISO builder that BlueBuild's
+# `generate-iso` wraps. `iso-direct` calls it directly. Pinned to the tag
+# bluebuild itself uses (utils/src/constants.rs: JASONN3_INSTALLER_IMAGE).
+installer_image := "ghcr.io/jasonn3/build-container-installer:v1.5.0"
+
+# Fedora release of the installer runtime for `iso-direct`. bluebuild resolves
+# this from the image's VERSION_ID; we pass it explicitly (the builder's own
+# default is a stale F39). Keep in sync with the base image (image-version:
+# latest -> currently Fedora 44).
+iso_version := "44"
+
+# Anaconda overrides injected by `iso-direct`. See the file's header.
+iso_template := "iso/blue-hour-anaconda.tmpl"
+
 # List available tasks.
 default:
     @just --list
@@ -87,6 +101,54 @@ iso flavour=default_flavour variant="server":
         --secure-boot-url {{secure_boot_url}} \
         --enrollment-password {{enrollment_password}} \
         image ghcr.io/gooserooster/blue-hour-{{flavour}}:latest
+
+# Build the offline ISO by invoking build-container-installer directly instead
+# of through `bluebuild generate-iso`. This exposes the knobs the CLI hides:
+#   * an explicit VERSION for the installer runtime (bluebuild auto-detects it
+#     from the image; the builder's own default is a stale F39);
+#   * any installer VARIANT (the CLI only allows kinoite/silverblue/server);
+#   * ADDITIONAL_TEMPLATES, used here to inject iso/blue-hour-anaconda.tmpl.
+# That template forces the base Fedora installer theme and always shows the
+# User/Root spokes, so account setup happens at install time regardless of the
+# variant's Anaconda profile. Requires a *published* image (image mode), same
+# as `just iso`. Extra make variables may be appended, e.g.
+#   just iso-direct workstation "" 44 iso/blue-hour-anaconda.tmpl WEB_UI=true
+#
+# By default no VARIANT is passed: the builder uses its own default (Server),
+# and the injected template overrides that profile's theme and storage, so the
+# result is the base Fedora look on Btrfs regardless. Pass a variant to override
+# (e.g. `just iso-direct workstation kinoite`).
+#
+# Build the offline ISO directly (base Fedora installer theme + account spokes).
+iso-direct flavour=default_flavour variant="" version=iso_version template=iso_template *extra:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    sudo -v
+    args=(
+        ISO_NAME=build/blue-hour-{{flavour}}.iso
+        DNF_CACHE=/cache/dnf
+        SECURE_BOOT_KEY_URL={{secure_boot_url}}
+        ENROLLMENT_PASSWORD={{enrollment_password}}
+        IMAGE_REPO=ghcr.io/gooserooster
+        IMAGE_NAME=blue-hour-{{flavour}}
+        IMAGE_TAG=latest
+        VERSION={{version}}
+    )
+    # Pass VARIANT only when set; otherwise the builder's default (Server)
+    # applies and the injected template normalises theme/storage/spokes.
+    if [ -n "{{variant}}" ]; then
+        args+=(VARIANT={{variant}})
+    fi
+    mounts=(-v "$PWD:/build-container-installer/build" -v dnf-cache:/cache/dnf)
+    if [ -n "{{template}}" ]; then
+        mounts+=(-v "$PWD/{{template}}:/blue-hour-anaconda.tmpl:ro")
+        args+=(ADDITIONAL_TEMPLATES=/blue-hour-anaconda.tmpl)
+    fi
+    sudo podman run --rm -it --privileged --pull=always \
+        --security-opt label=type:unconfined_t \
+        "${mounts[@]}" \
+        {{installer_image}} \
+        "${args[@]}" {{extra}}
 
 # Remove stale root-owned bluebuild artifacts left by an aborted root run.
 clean:

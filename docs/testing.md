@@ -66,27 +66,83 @@ qemu-system-x86_64 \
 ## 4. Generate an installer ISO (optional)
 
 The offline ISO embeds BlueBuild's MOK key and runs Anaconda, matching a real
-install. Because of the bug above it must be built from a **published image**
-(CI, or `bluebuild build --push`):
+install. Both builders below require a **published image** (CI, or `bluebuild
+build --push`); the local `generate-iso recipe` path is broken (see step 3).
+
+### 4.1 `just iso-direct` (recommended)
+
+`just iso` (the BlueBuild CLI wrapper) can only select the kinoite, silverblue
+or server installer variant, and the kinoite/silverblue Anaconda profiles
+**hide the User/Root account spokes** — they defer account creation to a
+first-boot initial-setup that this image does not ship, so you land at Ly with
+a locked root and no user. `iso-direct` instead calls the same underlying
+`build-container-installer` image directly and injects
+`iso/blue-hour-anaconda.tmpl`, which forces the base Fedora installer theme,
+reveals the account spokes, and resets storage to the base Fedora default
+(Btrfs + zstd:1, `/` + `/home`). No variant is passed by default, so the result
+is the generic-Fedora install experience.
+
+```sh
+sudo -v
+just iso-direct                 # base Fedora theme + Btrfs + user/root spokes
+just iso-direct gaming          # other flavour
+# optional overrides: <flavour> <variant> <version> <template> [extra make vars]
+just iso-direct workstation kinoite 44 iso/blue-hour-anaconda.tmpl WEB_UI=true
+```
+
+The overrides are applied through Anaconda's `/etc/anaconda/conf.d/`, which is
+loaded *after* the selected profile, so they win regardless of variant.
+
+### 4.2 Plain BlueBuild CLI: `just iso`
 
 ```sh
 sudo -v    # authenticate once, up front, in your terminal
 bluebuild generate-iso --iso-name blue-hour-workstation.iso \
   --secure-boot-url https://github.com/blue-build/base-images/raw/main/files/base/etc/pki/akmods/certs/akmods-blue-build.der \
   --enrollment-password bluebuild \
+  --variant server \
   image ghcr.io/gooserooster/blue-hour-workstation:latest
-# or: just iso workstation
+# or: just iso workstation        (defaults to the server variant)
 ```
 
-`generate-iso` runs the installer container with `--privileged`, so BlueBuild
-invokes `sudo podman` internally. Run the CLI as your **user** (not `sudo
-bluebuild`) and pre-authenticate with `sudo -v` first: the prompt then appears
+Only `--variant server` reliably exposes the account spokes; `kinoite` and
+`silverblue` hide them (see 4.1).
+
+Both paths run the installer container with `--privileged`, so `sudo podman` is
+used internally. Pre-authenticate with `sudo -v` first: the prompt then appears
 in your terminal, the internal sudo uses the cached timestamp, and no
 root-owned `.bluebuild-scripts_` is left in the repo. From a non-interactive
 shell, `sudo -v` must be done in a terminal first; if a graphical
 `SUDO_ASKPASS` is set but not working, `unset SUDO_ASKPASS` so sudo prompts on
 the tty. If a previous aborted root run left a root-owned `.bluebuild-scripts_`,
 remove it with `just clean`.
+
+### 4.3 Keeping the install path in sync across Fedora revisions
+
+`iso-direct` bakes in a few Fedora-version assumptions. Whenever the base image
+moves to a new Fedora release, re-check these (all in `justfile` unless noted):
+
+- **`iso_version`** — the release used for the installer runtime (`lorax
+  -v/-r`). Keep it equal to the base image's `/usr/lib/os-release` `VERSION_ID`
+  (currently `44`). A mismatch means an installer built from the wrong release.
+- **`installer_image`** — the pinned `build-container-installer` tag. BlueBuild
+  pins the same image/tag in `utils/src/constants.rs`
+  (`JASONN3_INSTALLER_IMAGE`); bump deliberately and re-test, do not float
+  `:latest`.
+- **`iso/blue-hour-anaconda.tmpl`** — assumes these Anaconda option names and
+  paths are unchanged: `[User Interface] custom_stylesheet` / `hidden_spokes`,
+  `[Storage] default_scheme` / `btrfs_compression` / `file_system_type` /
+  `default_partitioning`, and the base stylesheet
+  `/usr/share/anaconda/pixmaps/fedora.css`. Cross-check against the new
+  release's `/etc/anaconda/anaconda.conf` and profile files (upstream `anaconda`
+  repo: `data/conf.d/`, `data/profile.d/*.conf`).
+- **Account spokes** — profiles may change which spokes they hide. Re-run the
+  section-5 smoke check on the ISO and confirm the installer presents "User
+  Creation" and "Root Password".
+
+After a base bump, build the ISO, boot it in QEMU, and confirm the installer
+shows the account spokes and partitions to Btrfs (`lsblk -f` / `findmnt` in the
+installed system).
 
 Equivalent QEMU boot:
 
