@@ -83,9 +83,11 @@ Goal: system-wide Nix with a store that survives image updates.
   so `/nix` (the `/var/nix` bind) is unlabeled (`default_t`) and systemd is
   denied creating `/nix/var/nix/daemon-socket/socket`. `files/scripts/nix-selinux.sh`
   registers the nix-community `nix.fc` file contexts (`semanage fcontext`), and
-  the `z` entry in `blue-hour-nix.conf` relabels the daemon-socket dir every boot
-  (a build-time relabel would be hidden by the fresh bind mount). Verify with
-  `ls -Z /nix/var/nix/daemon-socket` and `ausearch -m avc -ts boot` in the VM.
+  the `Z` entry in `blue-hour-nix.conf` relabels the daemon-socket dir and its
+  stale socket every boot (a build-time relabel would be hidden by the fresh
+  bind mount; `Z`, not `z`, so the pre-existing socket is relabeled too).
+  Verify with `ls -Z /nix/var/nix/daemon-socket/socket` and
+  `ausearch -m avc -ts boot` in the VM.
 - Acceptance: after an update+rebase, `nix run nixpkgs#hello` still works and
   `/nix/store` is on `/var/nix`.
 - **Fallback:** rootless single-user (`nix-core`), documented but not preferred.
