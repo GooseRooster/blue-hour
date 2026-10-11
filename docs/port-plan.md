@@ -130,8 +130,14 @@ Deviations from the original plan, all deliberate:
   not `ly.service`.** Fedora 44 ships the Zig rewrite **1.4.0** (the NixOS
   target is **1.5** — a one-minor downgrade, accepted). `/etc/ly/config.ini`
   keeps the 0xSSRRGGBB styling (`bg`/`fg`/`error_fg`/`hide_borders`/`clock`/
-  `bigclock`); validate the keys against the package default in the VM. Add an
-  `audit2allow`-generated module only if the VM logs AVCs. Terminus console
+  `bigclock`); validate the keys against the package default in the VM. Because
+  this file **replaces** the RPM's `config.ini`, it repeats Fedora's
+  `setup_cmd = /bin/sh /etc/ly/setup.sh` patch — the package installs
+  `setup.sh` `0644` and shebang-stripped, so the bare compiled default would be
+  non-executable and every session would die with EACCES. Re-check the
+  `ly.spec` `%install` `sed`s on every base bump. Add an `audit2allow`-generated
+  module only if the VM logs AVCs; verify the F44 `%post` `xdm_exec_t` label on
+  `/usr/bin/ly` survives the bootc build (`ls -Z /usr/bin/ly`). Terminus console
   font via `/etc/vconsole.conf` (`FONT=ter-u28n`); if the installer's
   `/etc/vconsole.conf` shadows it, use a `ly-kmsconvt@tty2` drop-in.
 - **Noctalia**: `dnf install noctalia`; `/etc/noctalia/00-blue-hour-defaults.toml`

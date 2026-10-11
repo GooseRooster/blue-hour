@@ -45,7 +45,9 @@ Both flavours are built from the same `common.yml`; `gaming` is a superset of
 ### Desktop
 - **Sway** (Wayland compositor) built from the latest upstream release.
 - **Noctalia** shell, with its built-in theming.
-- **Ly** TUI display manager (with its Fedora SELinux policy).
+- **Ly** TUI display manager (the Fedora package labels it for SELinux's
+  display-manager `xdm_t` domain; a dedicated `ly-selinux` module only exists on
+  newer Fedora).
 - PipeWire audio, XDG portals (wlr/gtk/gnome), gnome-keyring, polkit.
 - **GPU Screen Recorder** (the primary screenshot and screen-recording tool;
   hardware-accelerated via AMD/Intel VA-API and HDR-capable), adw-gtk3 + Hatter
