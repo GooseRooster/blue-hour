@@ -155,8 +155,9 @@ verifies at boot.
 ```sh
 nix develop            # BlueBuild CLI + podman/buildah + qemu + just
 just build workstation # or: bluebuild build recipes/workstation.yml
-just iso workstation   # build an offline ISO
-just vm                # boot the ISO in QEMU/KVM
+# Build and boot a local VM (QCOW2 via bootc-image-builder):
+just build-root workstation && just disk workstation && just vm-disk workstation
+just iso workstation   # build the offline ISO from a published image
 ```
 
 See [`docs/testing.md`](docs/testing.md) for the full routine and the

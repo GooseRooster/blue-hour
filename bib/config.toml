@@ -1,0 +1,9 @@
+# Local-test only: bootc-image-builder injects this throwaway account so you
+# can log straight into the desktop (Ly -> Sway) without running the installer.
+# blue-hour's real accounts are created by the graphical installer; this file
+# is only consumed by `just disk` and must not be shipped.
+
+[[customizations.user]]
+name = "bluehour"
+password = "bluehour"
+groups = ["wheel"]

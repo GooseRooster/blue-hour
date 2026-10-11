@@ -3,6 +3,7 @@ cosign.private
 /Containerfile
 *.iso
 *.iso-CHECKSUM
+/output/
 
 # Nix dev tooling
 .direnv/

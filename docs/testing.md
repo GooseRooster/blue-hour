@@ -30,29 +30,29 @@ bluebuild build recipes/workstation.yml
 # or: just build workstation
 ```
 
-## 3. Generate an offline ISO from the local recipe
+This builds rootless into your user's podman storage.
+
+## 3. Boot it in a VM (recommended local path)
+
+BlueBuild's `generate-iso recipe` (local tarball) path is currently broken: it
+writes the locally built image as `blue-hour-<flavour>.tar_linux_amd64.gz`
+(a platform suffix from `Platform::tagged_path`) but tells the installer to read
+the unsuffixed `blue-hour-<flavour>.tar.gz`, so `skopeo` fails with
+`archive file not found`. Build a disk image directly from the local container
+image with `bootc-image-builder` instead:
 
 ```sh
-sudo bluebuild generate-iso --iso-name blue-hour-workstation.iso recipe recipes/workstation.yml
-# or: just iso workstation
+just build-root workstation   # build into rootful podman storage (bib needs it)
+just disk workstation         # -> output/qcow2/disk.qcow2
+just vm-disk workstation      # boot it in QEMU/KVM
 ```
 
-`generate-iso` runs the installer container with `--privileged`, so it needs
-root (BlueBuild otherwise prepends `sudo` to the `podman` call). Run it from a
-real terminal so the password prompt is visible; from a non-interactive shell,
-`sudo -v` first. If a graphical `SUDO_ASKPASS` is set but not working, `unset
-SUDO_ASKPASS` so sudo prompts on the tty.
+`bib/config.toml` injects a throwaway `bluehour`/`bluehour` account so you can
+log straight into Ly -> Sway without running the installer. It is local-test
+only; real accounts are created by the installer. If `--rootfs btrfs` is wrong
+for your base, adjust the `disk` recipe.
 
-Use `recipe` (not `image`) so you are testing the working tree, not a published
-build.
-
-## 4. Boot it in QEMU/KVM
-
-```sh
-just vm blue-hour-workstation.iso
-```
-
-Equivalent:
+Boot the disk manually:
 
 ```sh
 qemu-system-x86_64 \
@@ -60,14 +60,50 @@ qemu-system-x86_64 \
   -machine q35,accel=kvm \
   -device virtio-vga-gl -display gtk,gl=on \
   -device virtio-net-pci,netdev=net0 -netdev user,id=net0 \
-  -cdrom blue-hour-workstation.iso -boot d
+  -drive file=output/qcow2/disk.qcow2,if=virtio,format=qcow2
 ```
+
+## 4. Generate an installer ISO (optional)
+
+The offline ISO embeds BlueBuild's MOK key and runs Anaconda, matching a real
+install. Because of the bug above it must be built from a **published image**
+(CI, or `bluebuild build --push`):
+
+```sh
+sudo -v    # authenticate once, up front, in your terminal
+bluebuild generate-iso --iso-name blue-hour-workstation.iso \
+  --secure-boot-url https://github.com/blue-build/base-images/raw/main/files/base/etc/pki/akmods/certs/akmods-blue-build.der \
+  --enrollment-password bluebuild \
+  image ghcr.io/gooserooster/blue-hour-workstation:latest
+# or: just iso workstation
+```
+
+`generate-iso` runs the installer container with `--privileged`, so BlueBuild
+invokes `sudo podman` internally. Run the CLI as your **user** (not `sudo
+bluebuild`) and pre-authenticate with `sudo -v` first: the prompt then appears
+in your terminal, the internal sudo uses the cached timestamp, and no
+root-owned `.bluebuild-scripts_` is left in the repo. From a non-interactive
+shell, `sudo -v` must be done in a terminal first; if a graphical
+`SUDO_ASKPASS` is set but not working, `unset SUDO_ASKPASS` so sudo prompts on
+the tty. If a previous aborted root run left a root-owned `.bluebuild-scripts_`,
+remove it with `just clean`.
+
+Equivalent QEMU boot:
+
+```sh
+just vm blue-hour-workstation.iso
+# qemu-system-x86_64 ... -cdrom blue-hour-workstation.iso -boot d
+```
+
 
 Notes:
 
-- **Secure Boot:** the ISO embeds BlueBuild's MOK key and enrolls it at install.
-  At the first boot, select **Enroll MOK** in the shim manager and enter
-  `bluebuild`. To test enforced SB in QEMU, use OVMF with Secure Boot on;
+- **Secure Boot (QCOW2):** `bootc-image-builder` does not enroll BlueBuild's MOK
+  key, so boot the QCOW2 with Secure Boot off (the QEMU invocation in `just
+  vm-disk` uses no OVMF vars). Use the ISO to exercise Secure Boot.
+- **Secure Boot (ISO):** the ISO embeds BlueBuild's MOK key and enrolls it at
+  install. At the first boot, select **Enroll MOK** in the shim manager and
+  enter `bluebuild`. To test enforced SB in QEMU, use OVMF with Secure Boot on;
   otherwise disable SB in the VM firmware for a simpler boot. See the README's
   Secure Boot section.
 - Use OVMF (`/usr/share/OVMF/OVMF_CODE.fd` + a writable `OVMF_VARS.fd` copy) if
@@ -78,9 +114,11 @@ Notes:
 
 ## 5. Per-flavour smoke checklist
 
-Boot the ISO, install, then log in and check:
+Boot the VM (the QCOW2 from `just disk`/`just vm-disk`, or an installed ISO),
+then log in (QCOW2: the throwaway `bluehour`/`bluehour` account) and check:
 
-- [ ] Boot reaches Ly; login as the installer-created user.
+- [ ] Boot reaches Ly; log in (QCOW2: `bluehour`; ISO: the installer-created
+      user).
 - [ ] Login shell is zsh: `echo $SHELL` and `getent passwd "$USER"` end in
       `/usr/bin/zsh` (and survive an update + reboot).
 - [ ] Baseline CLI is present pre-HM: `bat`, `fd`, `rg`, `eza`, `jq`, `btop`,
