@@ -1,7 +1,0 @@
-[Unit]
-Description=Notify the user that automatic Flatpak setup failed
-Documentation=https://github.com/GooseRooster/blue-hour
-
-[Service]
-Type=oneshot
-ExecStart=/usr/bin/bash /usr/libexec/blue-hour-flatpak-setup-failure system-flatpak-setup.service
