@@ -197,7 +197,6 @@ Flatpaks stay in Home Manager.
 - `game-performance` helper (TuneD + Noctalia IPC + notifications).
 - ananicy-cpp and GPU Screen Recorder are **not** gaming-only — they live in
   `common.yml` (see phases 2 and 3).
-- **No GameMode** (uses the custom script instead).
 - **Kernel: stock Fedora** for now. (Revisit later: OGC kernel via a
   CachyOS-style swap script — stub `05-rpmsostree.install`/`50-dracut.install`,
   replace `kernel*`, `depmod` + `dracut`; needs MOK enrollment/SB off.)
@@ -214,6 +213,11 @@ Flatpaks stay in Home Manager.
 `common.yml` + `workstation.yml` + `gaming.yml`, CI matrix, `os-release`
 branding, cosign signing (base + recipe `signing` last), `justfiles` for
 `ujust`-style update commands.
+
+
+### Phase 7.5 -- Default settings and theme for desktop
+
+Base off system level settings in the nixos flake, include a basic wallpaper and colorscheme plus seeding for base theming templates in noctalia
 
 ### Phase 8 — Updates, notifications, secrets provider
 - Automatic updates already come from the base (`bootc-fetch-apply-updates.timer`
