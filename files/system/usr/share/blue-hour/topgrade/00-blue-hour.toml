@@ -15,7 +15,8 @@
 # See docs/port-plan.md phase 6 and docs/userland.md.
 
 # Use bootc (not dnf/rpm-ostree) for the OS step on this atomic image.
-[system]
+# (topgrade's Linux/OS step is `[linux]`; `[system]` is not a valid section.)
+[linux]
 bootc = true
 
 # Manage the system-wide Flatpak installation as well as the user one.
