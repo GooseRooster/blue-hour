@@ -32,10 +32,15 @@ modules:
   # removes the repo file afterwards, leaving its `repos.override.d` enabling
   # fedora-steam/fedora-multimedia at priority 90. Re-enable negativo17 here —
   # explicitly NOT `nonfree: rpmfusion`, which would disable it — and install
-  # Steam from fedora-steam. The base already replaced the codec/mesa stack
-  # from fedora-multimedia, and Steam's i686 multilib deps come from the same
-  # repo, so RPMFusion is not needed (and would fight the base).
-  # Cleanup removes the repo file again after install, mirroring the base.
+  # Steam. The base already replaced the codec/mesa stack from
+  # fedora-multimedia, and Steam's i686 multilib deps come from Fedora, so
+  # RPMFusion is not needed (and would fight the base).
+  #
+  # NB: do NOT scope this with `repo: fedora-steam` — the dnf module passes
+  # `--repo`, which disables all other repos, so Steam's i686 dependencies
+  # (mesa-vulkan-drivers(x86-32), nss(x86-32), ...) could not be resolved.
+  # fedora-steam is the only provider of `steam`, so an unscoped install picks
+  # it. Cleanup removes the repo file again after install, mirroring the base.
   - type: dnf
     repos:
       cleanup: true
@@ -43,9 +48,7 @@ modules:
     install:
       install-weak-deps: false
       packages:
-        - repo: fedora-steam
-          packages:
-            - steam
+        - steam
 
   # --- Gaming config + helpers -------------------------------------------
   # Applied *after* all package installs so the gaming PPD mapping wins over

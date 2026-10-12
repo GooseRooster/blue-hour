@@ -198,8 +198,9 @@ Deviations from the original plan, all deliberate:
   removes `/etc/yum.repos.d/fedora-negativo17.repo` afterwards, leaving a
   `repos.override.d` that enables `fedora-steam`/`fedora-multimedia` at priority
   90. The gaming recipe therefore re-enables `nonfree: negativo17` and installs
-  `steam` scoped to `repo: fedora-steam`, then cleans the repo file up again. A
-  dry-run in the base resolves cleanly (216 installs, only the benign
+  `steam` (unscoped — `repo: fedora-steam` passes `--repo` and would hide the
+  Fedora i686 multilib deps), then cleans the repo file up again. A dry-run in
+  the base resolves cleanly (216 installs, only the benign
   `noopenh264 → openh264` replacement); RPMFusion is neither needed nor wanted
   (it fights the base's multimedia stack).
 - **TuneD + tuned-ppd are shared (both flavours)**, not gaming-only: the
