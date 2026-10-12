@@ -46,7 +46,7 @@ describes the intended end-state, not the migration.
 | `modules/desktop/graphics.nix`, `pipewire.nix`, `portals.nix`, `power.nix`, `keyring.nix`, `virtualization.nix`, `terminal.nix`, `gsr.nix` | `dnf`, `files`, `systemd`, `script` (gsr helpers) |
 | `modules/desktop/apps.nix` — Ly DM | `dnf` (`ly`, `ly-selinux`), `files` (`/etc/ly/config.ini`, PAM) |
 | `modules/extras/tuned.nix` | `dnf` (`tuned`, `tuned-ppd`), `files` (profiles + ppd mapping) |
-| `modules/gaming/*` | `dnf` + RPMFusion repo files, `script` (game-performance), `systemd` |
+| `modules/gaming/*` | `dnf` (negativo17 `fedora-steam`, Fedora Wine, Faugus COPR), `script` (game-performance), `systemd` |
 | `pkgs/hatter`, `pkgs/adwaita-for-steam` | `files` + `script` (package from source at build time) |
 | home-manager dotfiles repo | standalone Home Manager on the image's Nix |
 
@@ -188,26 +188,73 @@ Deviations from the original plan, all deliberate:
 Port `modules/flatpak/system.nix` into `default-flatpaks` (system scope). User
 Flatpaks stay in Home Manager.
 
-### Phase 5 — Gaming flavour
-- RPMFusion repo files (`repos.files` + `repos.keys`, **not** `nonfree:`) for
-  Steam; native Steam + Adwaita-for-Steam, Wine/winetricks/Faugus.
-- `tuned` + `tuned-ppd`: shared mapping in `common` (power-saver→powersave,
-  balanced→balanced, performance→throughput-performance); gaming overrides
-  performance→latency-performance.
-- `game-performance` helper (TuneD + Noctalia IPC + notifications).
-- ananicy-cpp and GPU Screen Recorder are **not** gaming-only — they live in
-  `common.yml` (see phases 2 and 3).
+### Phase 5 — Gaming flavour ✅ (shipped, with deviations)
+Implemented in `recipes/gaming.yml`, `files/gaming`, and the shared TuneD bits in
+`recipes/common-system.yml`.
+Deviations from the original plan, all deliberate:
+
+- **No RPMFusion — Steam comes from negativo17.** Verified against the current
+  base: it is itself built with `nonfree: negativo17` (fedora-multimedia) and
+  removes `/etc/yum.repos.d/fedora-negativo17.repo` afterwards, leaving a
+  `repos.override.d` that enables `fedora-steam`/`fedora-multimedia` at priority
+  90. The gaming recipe therefore re-enables `nonfree: negativo17` and installs
+  `steam` scoped to `repo: fedora-steam`, then cleans the repo file up again. A
+  dry-run in the base resolves cleanly (216 installs, only the benign
+  `noopenh264 → openh264` replacement); RPMFusion is neither needed nor wanted
+  (it fights the base's multimedia stack).
+- **TuneD + tuned-ppd are shared (both flavours)**, not gaming-only: the
+  power-profile mapping in `files/system/etc/tuned/ppd.conf` is common. The base
+  ships neither `tuned` nor `power-profiles-daemon`, so both are installed and
+  no swap is required. tuned-ppd reads a single file (there is **no**
+  `ppd.conf.d/` drop-in), so the gaming override (`performance →
+  latency-performance`) is a full replacement shipped in
+  `files/gaming/etc/tuned/ppd.conf`, re-applied after the RPM install.
+- **Adwaita-for-Steam** is a per-user skin: the sources are staged at build time
+  (`files/scripts/install-adwaita-for-steam.sh`) and applied once after Steam's
+  first launch by the user `blue-hour-steam-theme.path`→`.service`. User CSS
+  lives outside the Steam tree (`~/.config/adwaita-for-steam/custom.css`) and is
+  re-applied with `--custom-css`, so re-applying never clobbers it. Re-run with
+  `blue-hour-steam-theme reapply`.
+- **Steam/Wine/Faugus**: native Steam from negativo17 (`fedora-steam`);
+  `wine`/`winetricks` from Fedora; `faugus-launcher` from the
+  `faugus/faugus-launcher` COPR (x86_64 only — revisit if the build matrix grows
+  an aarch64 entry).
+- **`game-performance`** drives the profile through Noctalia IPC
+  (`noctalia msg power-set`), so no polkit prompt, and restores the previous
+  PPD profile + caffeine on exit.
 - **Kernel: stock Fedora** for now. (Revisit later: OGC kernel via a
   CachyOS-style swap script — stub `05-rpmsostree.install`/`50-dracut.install`,
   replace `kernel*`, `depmod` + `dracut`; needs MOK enrollment/SB off.)
 
-### Phase 6 — Nix / Home Manager / Homebrew userland
-- Homebrew via the `brew` module.
-- Document running standalone Home Manager against the dotfiles repo.
-- `topgrade` (COPR `lilay/topgrade`) as the manual updater.
-- Zen Browser moves **to the system** (COPR `sneexy/zen-browser`, x86_64;
-  `architektapx/zen-browser` for aarch64) with a `policies.json`; remove it
-  from the Home Manager layer.
+### Phase 6 — Nix / Home Manager / Homebrew userland ✅ (shipped, with deviations)
+Implemented across `recipes/common-userland.yml` (Nix + Homebrew),
+`recipes/common-updates.yml` (updater + tray), `recipes/common-system.yml`
+(Zen), `files/system`, and `docs/userland.md`.
+
+- **Homebrew** via the `brew` module (both flavours); HM still owns user
+  formulae.
+- **Standalone Home Manager** documented in `docs/userland.md` (init + `switch
+  --flake`), including the zsh ownership split and "Zen is not in the HM layer".
+- **topgrade** (COPR `lilay/topgrade`) is the manual updater; its default config
+  is a user-overridable drop-in (`~/.config/topgrade.d/00-blue-hour.toml` →
+  `/usr/share/blue-hour/topgrade/00-blue-hour.toml`, seeded by user-tmpfiles).
+  topgrade.d is merged *before* `~/.config/topgrade.toml`, so user config wins.
+- **Zen Browser moves to the system** (COPR `sneexy/zen-browser`) with a
+  `policies.json`. The RPM installs under `/opt/zen`, which the `files` module
+  cannot write (bootc symlinks `/opt`), so the policy is patched in place by a
+  script snippet after install; `DisableAppUpdate` is kept (updates come with the
+  image).
+- **Update notification + tray.** `bootc status` refuses unprivileged users, so
+  a root `blue-hour-update-status.service`/`.timer` polls
+  `bootc upgrade --check` + `bootc status --json` and writes a world-readable
+  `/run/blue-hour/update-status.json`; a per-user
+  `blue-hour-update-notify.service`/`.timer` notifies on a newly staged
+  deployment. The **blue-hour Updates** Noctalia plugin (shipped as a `path`
+  source under `/usr/share/blue-hour/noctalia-plugins`) renders the bar widget:
+  a dot when an update is available/staged, a version tooltip, and click →
+  `blue-hour-topgrade`. This pulls the staged-update notification forward from
+  phase 8.
+
 
 ### Phase 7 — Flavours, CI, branding
 `common.yml` + `workstation.yml` + `gaming.yml`, CI matrix, `os-release`
@@ -219,11 +266,10 @@ branding, cosign signing (base + recipe `signing` last), `justfiles` for
 
 Base off system level settings in the nixos flake, include a basic wallpaper and colorscheme plus seeding for base theming templates in noctalia
 
-### Phase 8 — Updates, notifications, secrets provider
-- Automatic updates already come from the base (`bootc-fetch-apply-updates.timer`
-  + flatpak timers). Add a small unit that detects a staged bootc deployment
-  (`bootc status`) and `notify-send`s "updates staged — reboot to apply".
-- `topgrade`/`uupd` as the manual/optional updater.
+### Phase 8 — Secrets provider (oo7)
+- Automatic updates come from the base (`bootc-fetch-apply-updates.timer` +
+  flatpak timers); the staged-update notification and `topgrade` updater shipped
+  in phase 6.
 - **Secrets provider (oo7) — phased.** Fedora 44 uses gnome-keyring; Fedora 45
   switches the default Secret Service provider to **oo7** (`oo7-daemon` +
   `pam_oo7`), with automatic one-way migration from gnome-keyring/KWallet.
@@ -248,7 +294,23 @@ Base off system level settings in the nixos flake, include a basic wallpaper and
 3. Ly: F44 ships 1.4.0 vs the 1.5 target, and no SELinux policy — verify
    `config.ini` keys and watch for AVCs in the VM.
 4. `nwg-look` depends on the third-party `tofik/nwg-shell` COPR.
-5. RPMFusion vs negativo17 coexistence for Steam/Wine/Faugus.
+5. Steam/Wine/Faugus: Steam comes from the negativo17 `fedora-steam` repo
+   (re-enabled explicitly, not RPMFusion); a base-image dry-run resolves
+   cleanly, but re-verify after a base bump.
 6. GSR `gsr-kms-server` capability behaviour from the RPM (promptless capture).
-7. Noctalia v5 Fedora package is currently a beta in F44 updates.
+7. Noctalia v5 Fedora package is currently a beta in F44 updates. The update
+   tray is a v5 Luau plugin pinned to `plugin_api = 3`; confirm the shipped
+   plugin API level and the `path` source discovery in the VM.
 8. oo7 migration is one-way; sequence the F45 bump carefully.
+9. tuned-ppd reads a single `/etc/tuned/ppd.conf` (no drop-in dir), so the
+   gaming mapping is a full file replacement — re-check on tuneD updates.
+10. topgrade's `topgrade.d/` merge directory is slated for deprecation in favour
+    of `[include]`; if the installed version drops it, switch the seeded default
+    to a copy-if-absent `~/.config/topgrade.toml`.
+11. Zen installs under `/opt/zen` (bootc-symlinked); the `policies.json` patch is
+    a build-time script, so verify the path survives optfix and the policy is
+    read by Zen.
+12. Adwaita-for-Steam only applies after Steam's first launch (the `.path` unit
+    watches `~/.steam/steam`); confirm in the VM, and that user custom CSS in
+    `~/.config/adwaita-for-steam/custom.css` survives `blue-hour-steam-theme
+    reapply`.

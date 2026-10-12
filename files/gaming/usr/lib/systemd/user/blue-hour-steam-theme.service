@@ -1,0 +1,8 @@
+[Unit]
+Description=Apply the Adwaita-for-Steam skin
+Documentation=https://github.com/GooseRooster/blue-hour
+ConditionPathExists=%h/.steam/steam
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/blue-hour-steam-theme apply

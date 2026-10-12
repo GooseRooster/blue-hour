@@ -1,0 +1,9 @@
+[Unit]
+Description=Apply the Adwaita-for-Steam skin once Steam has been installed
+
+[Path]
+PathExists=%h/.steam/steam
+Unit=blue-hour-steam-theme.service
+
+[Install]
+WantedBy=default.target

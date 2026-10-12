@@ -1,0 +1,10 @@
+[Unit]
+Description=Periodically notify about a staged blue-hour system update
+Documentation=https://github.com/GooseRooster/blue-hour
+
+[Timer]
+OnStartupSec=1min
+OnUnitActiveSec=10min
+
+[Install]
+WantedBy=timers.target

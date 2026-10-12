@@ -1,0 +1,20 @@
+---
+# yaml-language-server: $schema=https://schema.blue-build.org/module-list-v1.json
+#
+# Phase 6 — the userland layer: system-wide Nix with a persistent store
+# (common-nix.yml) plus Homebrew. This is the "Nix / Home Manager / Homebrew"
+# userland described in the README, shared by both flavours.
+#
+# Home Manager itself is applied per user against the dotfiles repo; see
+# docs/userland.md. The system-side updater and browser live in
+# common-updates.yml and common-system.yml respectively.
+modules:
+  # System-wide Nix (phase 1): persistent /nix, nix-daemon ordering, and the
+  # SELinux file contexts.
+  - from-file: common-nix.yml
+
+  # Homebrew: installs Linuxbrew to /home/linuxbrew/.linuxbrew at runtime and
+  # enables the brew-update/brew-upgrade timers. Home Manager still owns user
+  # formulae.
+  - type: brew
+    brew-analytics: false

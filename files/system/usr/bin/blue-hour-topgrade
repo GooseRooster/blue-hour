@@ -1,0 +1,25 @@
+#!/usr/bin/bash
+# blue-hour manual updater entry point.
+#
+# Runs topgrade in a login shell so Homebrew's shellenv (set up by the dotfiles
+# / brew module in ~/.zprofile) is on PATH. topgrade's default config
+# (~/.config/topgrade.d/00-blue-hour.toml) enables the bootc, Flatpak and
+# Homebrew steps; users can override it in ~/.config/topgrade.toml.
+#
+# Used by the Noctalia tray/bar widget and intended to be run in a terminal so
+# interactive sudo prompts (bootc) work. After it finishes, if a deployment is
+# staged, point the user at a restart. See docs/port-plan.md phase 6.
+set -uo pipefail
+
+ZSH="$(command -v zsh || true)"
+if [ -n "$ZSH" ]; then
+  "$ZSH" -l -c topgrade
+else
+  topgrade
+fi
+
+if [ -r /run/blue-hour/update-status.json ] \
+  && jq -e '.staged == true' /run/blue-hour/update-status.json >/dev/null 2>&1; then
+  notify-send -u normal -a "blue-hour" -i system-software-update \
+    "Updates ready to install" "Restart to apply the staged update." >/dev/null 2>&1 || true
+fi

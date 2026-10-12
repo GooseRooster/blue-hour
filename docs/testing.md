@@ -187,9 +187,24 @@ then log in (QCOW2: the throwaway `bluehour`/`bluehour` account) and check:
 - [ ] Nix: `nix run nixpkgs#hello` works.
 - [ ] Home Manager: `home-manager switch --flake <dotfiles>#<user>` succeeds.
 - [ ] Homebrew: `brew install <small formula>` works.
-- [ ] `topgrade --dry-run` finds the expected managers.
-- [ ] Gaming only: Steam launches; a Proton game starts; `game-performance`
-      switches TuneD and restores it; GSR records a clip.
+- [ ] `topgrade --dry-run` finds the expected managers (bootc, Flatpak,
+      Homebrew); a user `~/.config/topgrade.toml` overrides the seeded
+      `~/.config/topgrade.d/00-blue-hour.toml`.
+- [ ] Zen Browser launches from the system package and reads
+      `/opt/zen/distribution/policies.json`.
+- [ ] Update tray: after `sudo bootc upgrade` (staged), within ~15 min
+      `/run/blue-hour/update-status.json` shows `"staged": true`, a desktop
+      notification fires, and the Noctalia "blue-hour Updates" bar widget shows
+      the dot + tooltip; clicking it opens topgrade.
+- [ ] Gaming only: Steam launches; a Proton game starts; `game-performance
+      <cmd>` switches TuneD to `latency-performance` (`tuned-adm active`) and
+      restores it on exit; GSR records a clip.
+- [ ] Gaming only: after Steam's first launch, the Adwaita-for-Steam skin is
+      applied; `blue-hour-steam-theme reapply` preserves
+      `~/.config/adwaita-for-steam/custom.css`.
+- [ ] Steam comes from negativo17: `dnf repoquery --repo=fedora-steam steam`
+      resolves (with the negativo17 repo temporarily re-enabled) and the
+      multimedia stack is untouched.
 
 ## 6. Update / rollback / persistence
 

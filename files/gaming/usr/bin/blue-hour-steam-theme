@@ -1,0 +1,65 @@
+#!/usr/bin/bash
+# Apply, re-apply or remove the Adwaita-for-Steam skin for the current user.
+#
+# The skin sources are staged in the image by
+# files/scripts/install-adwaita-for-steam.sh; this wrapper runs upstream's
+# install.py against the user's native (and Flatpak, if present) Steam
+# directory. It is invoked by the user path/service unit
+# blue-hour-steam-theme.{path,service} after Steam's first launch.
+#
+# Custom CSS: a user's overrides live OUTSIDE the Steam tree in
+#   ~/.config/adwaita-for-steam/custom.css
+# and are passed to install.py with --custom-css, so re-applying the skin never
+# clobbers them. The automatic pass runs only once (a state marker is written);
+# after that, use `blue-hour-steam-theme reapply` to pick up skin updates. This
+# keeps manual edits to the installed skin from being overwritten on every
+# login.
+#
+# Usage: blue-hour-steam-theme [apply|reapply|uninstall]
+set -euo pipefail
+
+SRC="/usr/share/blue-hour/adwaita-for-steam"
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/blue-hour"
+MARKER="$STATE_DIR/adwaita-for-steam.applied"
+USER_CSS="${XDG_CONFIG_HOME:-$HOME/.config}/adwaita-for-steam/custom.css"
+
+action="${1:-apply}"
+
+[ -f "$SRC/install.py" ] || { echo "adwaita-for-steam: ${SRC} missing" >&2; exit 1; }
+
+steam_targets=()
+[ -d "$HOME/.steam/steam" ] && steam_targets+=("$HOME/.steam/steam")
+[ -d "$HOME/.var/app/com.valvesoftware.Steam/.steam/steam" ] \
+  && steam_targets+=("$HOME/.var/app/com.valvesoftware.Steam/.steam/steam")
+
+install_args() {
+  for t in "${steam_targets[@]}"; do printf '%s\n' -t "$t"; done
+  [ -f "$USER_CSS" ] && printf '%s\n' --custom-css "$USER_CSS"
+}
+
+case "$action" in
+  apply)
+    # Automatic path: only run once so manual skin edits survive.
+    if [ -f "$MARKER" ]; then
+      exit 0
+    fi
+    exec "$0" reapply
+    ;;
+  reapply | force)
+    [ "${#steam_targets[@]}" -gt 0 ] || exit 0
+    mapfile -t args < <(install_args)
+    (cd "$SRC" && ./install.py "${args[@]}")
+    mkdir -p "$STATE_DIR"
+    : > "$MARKER"
+    ;;
+  uninstall | unapply)
+    [ "${#steam_targets[@]}" -gt 0 ] || exit 0
+    mapfile -t args < <(install_args)
+    (cd "$SRC" && ./install.py --uninstall "${args[@]}") || true
+    rm -f "$MARKER"
+    ;;
+  *)
+    echo "usage: blue-hour-steam-theme [apply|reapply|uninstall]" >&2
+    exit 2
+    ;;
+esac

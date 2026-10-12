@@ -1,0 +1,33 @@
+#!/usr/bin/bash
+# Notify the user when a blue-hour system update has been staged.
+#
+# Runs from the per-user blue-hour-update-notify.timer. It reads the
+# world-readable status file written by blue-hour-update-status.service (which
+# runs as root) and sends a desktop notification the first time it sees a new
+# staged deployment digest. The last-seen digest is kept per user so the
+# notification is not repeated.
+#
+# See docs/port-plan.md phase 6.
+set -euo pipefail
+
+STATUS="/run/blue-hour/update-status.json"
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/blue-hour"
+LAST_FILE="$STATE_DIR/update-notify.staged"
+
+[ -r "$STATUS" ] || exit 0
+
+current="$(jq -r '.stagedDigest // empty' "$STATUS" 2>/dev/null || true)"
+[ -n "$current" ] || exit 0
+
+last=""
+[ -f "$LAST_FILE" ] && last="$(cat "$LAST_FILE" 2>/dev/null || true)"
+[ "$current" = "$last" ] && exit 0
+
+version="$(jq -r '.stagedVersion // "new"' "$STATUS" 2>/dev/null || echo new)"
+
+notify-send -u normal -a "blue-hour" -i system-software-update \
+  "Updates ready to install" \
+  "blue-hour ${version} is staged. Restart to apply it." >/dev/null 2>&1 || true
+
+mkdir -p "$STATE_DIR"
+printf '%s' "$current" >"$LAST_FILE"

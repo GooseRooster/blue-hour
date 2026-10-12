@@ -11,3 +11,27 @@
 # Turn it on so pkexec and GUI authentication work in the Sway session.
 [shell]
 polkit_agent = true
+
+# --- blue-hour update tray ---------------------------------------------
+# The blue-hour Updates widget (shipped under
+# /usr/share/blue-hour/noctalia-plugins) shows a dot when an update is
+# available or staged and opens topgrade when clicked. It is enabled here and
+# added to the default bar next to the tray. Because this is a low-priority
+# "00-" default, a user's own ~/.config/noctalia config still wins — including
+# the bar lane, so they can move or remove the widget from Settings.
+[plugins]
+enabled = ["bluehour/updates"]
+auto_update = "none"
+
+[[plugins.source]]
+name = "blue-hour"
+kind = "path"
+location = "/usr/share/blue-hour/noctalia-plugins"
+enabled = true
+
+[widget.bluehour_updates]
+type = "bluehour/updates:updates"
+
+# Keep the v5 default lane and insert the update widget after the tray.
+[bar.default]
+end = ["media", "tray", "bluehour_updates", "notifications", "clipboard", "network", "bluetooth", "volume", "brightness", "battery", "control-center", "session"]

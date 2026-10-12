@@ -1,0 +1,9 @@
+id = "bluehour/updates"
+name = "blue-hour Updates"
+version = "1.0.0"
+plugin_api = 3
+author = "blue-hour"
+
+[[widget]]
+id = "updates"
+entry = "widget.luau"

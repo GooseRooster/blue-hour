@@ -1,0 +1,51 @@
+---
+# yaml-language-server: $schema=https://schema.blue-build.org/module-list-v1.json
+#
+# Phase 6 — the system updater layer: topgrade, the bootc update-status service,
+# the per-user notification service, and the Noctalia update tray widget.
+#
+# These are system resources shared by both flavours and independent of the
+# per-user Home Manager/Nix layer (which lives in common-userland.yml). The
+# config files live under files/system.
+#
+# See docs/port-plan.md phase 6 and docs/userland.md.
+modules:
+  # topgrade is the manual updater; jq is used by the update-status/notify
+  # scripts and the blue-hour-topgrade wrapper. The COPR is cleaned up after
+  # install so it cannot influence later package selection.
+  - type: dnf
+    repos:
+      cleanup: true
+      copr:
+        - lilay/topgrade
+    install:
+      packages:
+        - jq
+        - topgrade
+
+  # Ship the topgrade default config, the update-status/notify scripts and
+  # units, and the Noctalia update plugin. Re-applied after the RPMs so the
+  # shipped files win over any RPM-provided defaults.
+  - type: files
+    files:
+      - source: system
+        destination: /
+
+  - type: systemd
+    system:
+      enabled:
+        # Detects staged / available bootc updates (needs root: `bootc status`
+        # refuses unprivileged users) and writes /run/blue-hour/update-status.json.
+        - blue-hour-update-status.timer
+    user:
+      enabled:
+        # Watches the status file and notifies on a staged update.
+        - blue-hour-update-notify.timer
+
+  - type: script
+    snippets:
+      - >-
+        chmod 0755
+        /usr/libexec/blue-hour-update-status
+        /usr/libexec/blue-hour-update-notify
+        /usr/bin/blue-hour-topgrade

@@ -1,0 +1,11 @@
+[Unit]
+Description=Periodically record blue-hour bootc update status
+Documentation=https://github.com/GooseRooster/blue-hour
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=15min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

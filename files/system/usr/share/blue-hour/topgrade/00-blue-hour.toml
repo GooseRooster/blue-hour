@@ -1,0 +1,23 @@
+# blue-hour default topgrade configuration.
+#
+# Seeded into each user's ~/.config/topgrade.d/00-blue-hour.toml by
+# usr/share/user-tmpfiles.d/blue-hour-userland.conf. topgrade merges the files
+# in topgrade.d/ *before* reading ~/.config/topgrade.toml, so a user's own
+# ~/.config/topgrade.toml (or a later ~/.config/topgrade.d/99-*.toml) overrides
+# everything here — nothing in this file is locked in.
+#
+# Defaults: stage a bootc OS update, update system + user Flatpaks, and update
+# Homebrew. To add extra steps, create ~/.config/topgrade.toml, for example:
+#
+#   [commands]
+#   "Home Manager" = "home-manager switch --flake ~/nixos-config#user"
+#
+# See docs/port-plan.md phase 6 and docs/userland.md.
+
+# Use bootc (not dnf/rpm-ostree) for the OS step on this atomic image.
+[system]
+bootc = true
+
+# Manage the system-wide Flatpak installation as well as the user one.
+[flatpak]
+use_sudo = true

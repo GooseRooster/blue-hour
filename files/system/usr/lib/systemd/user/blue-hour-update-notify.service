@@ -1,0 +1,8 @@
+[Unit]
+Description=Notify when a blue-hour system update is staged
+Documentation=https://github.com/GooseRooster/blue-hour
+ConditionPathExists=/run/blue-hour/update-status.json
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/blue-hour-update-notify

@@ -5,11 +5,56 @@
 # both flavours; the config files live under files/system (copied to / by the
 # files module in common.yml).
 modules:
+  # Power management is shared by both flavours: TuneD plus tuned-ppd, which
+  # exposes the power-profiles-daemon (PPD) D-Bus API on top of TuneD. The
+  # fedora-base image ships neither `tuned` nor `power-profiles-daemon`
+  # (verified against the current base), so there is nothing to remove/swap —
+  # both packages are simply installed here.
   - type: dnf
     install:
       packages:
         - btrfsmaintenance
+        - tuned
+        - tuned-ppd
+
+  # The profile mapping lives in files/system/etc/tuned/ppd.conf: PPD's three
+  # profiles are mapped onto TuneD profiles here (the gaming flavour ships a
+  # full replacement mapping performance -> latency-performance).
   - type: systemd
     system:
       enabled:
         - btrfs-scrub.timer
+        - tuned.service
+        - tuned-ppd.service
+
+  # --- System browser: Zen -------------------------------------------------
+  # Zen is a system resource (installed system-wide from the sneexy/zen-browser
+  # COPR, x86_64 + aarch64), not part of the per-user Home Manager layer. Its
+  # policies.json lives under /opt/zen, which the files module cannot write
+  # (bootc symlinks /opt), so it is patched in place after the install. COPR
+  # cleaned up after use.
+  - type: dnf
+    repos:
+      cleanup: true
+      copr:
+        - sneexy/zen-browser
+    install:
+      packages:
+        - zen-browser
+
+  - type: script
+    snippets:
+      # Keep DisableAppUpdate (updates arrive with the image) and add
+      # telemetry/studies/Pocket opt-outs.
+      - >-
+        if [ -f /opt/zen/distribution/policies.json ];
+        then install -m0644 /usr/share/blue-hour/zen-policies.json /opt/zen/distribution/policies.json;
+        fi
+
+  # tuned-ppd ships its own /etc/tuned/ppd.conf; re-apply files/system so the
+  # shared mapping written above wins over the RPM default (and so the Zen
+  # policy source is in place).
+  - type: files
+    files:
+      - source: system
+        destination: /

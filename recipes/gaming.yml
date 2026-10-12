@@ -11,14 +11,63 @@ modules:
   # The shared base (same as the workstation flavour).
   - from-file: common.yml
 
-  # --- TODO(port, phase 5) ------------------------------------------------
-  # - RPMFusion repo files + keys (explicit, NOT `nonfree:`, to keep the base's
-  #   negativo17 repo enabled) for Steam.
-  # - Native Steam + Adwaita-for-Steam; Wine + winetricks + Faugus Launcher.
-  # - TuneD: override the performance profile to latency-performance.
-  # - `game-performance` helper (TuneD + Noctalia IPC + notifications).
-  # No GameMode: the custom game-performance script is used instead.
-  # ananicy-cpp and GPU Screen Recorder live in common.yml (both flavours).
+  # --- Wine stack + Faugus Launcher --------------------------------------
+  # Installed before the negativo17 repo is re-enabled for Steam: wine and
+  # winetricks come from Fedora, Faugus from its COPR. The COPR is cleaned up
+  # after use so it cannot influence later package selection.
+  # No GameMode: the custom game-performance helper is used instead.
+  - type: dnf
+    repos:
+      cleanup: true
+      copr:
+        - faugus/faugus-launcher
+    install:
+      packages:
+        - wine
+        - winetricks
+        - faugus-launcher
+
+  # --- Steam (negativo17) ------------------------------------------------
+  # The base image is itself built on negativo17 (`nonfree: negativo17`) and
+  # removes the repo file afterwards, leaving its `repos.override.d` enabling
+  # fedora-steam/fedora-multimedia at priority 90. Re-enable negativo17 here —
+  # explicitly NOT `nonfree: rpmfusion`, which would disable it — and install
+  # Steam from fedora-steam. The base already replaced the codec/mesa stack
+  # from fedora-multimedia, and Steam's i686 multilib deps come from the same
+  # repo, so RPMFusion is not needed (and would fight the base).
+  # Cleanup removes the repo file again after install, mirroring the base.
+  - type: dnf
+    repos:
+      cleanup: true
+      nonfree: negativo17
+    install:
+      install-weak-deps: false
+      packages:
+        - repo: fedora-steam
+          packages:
+            - steam
+
+  # --- Gaming config + helpers -------------------------------------------
+  # Applied *after* all package installs so the gaming PPD mapping wins over
+  # the tuned-ppd RPM default and the source-built helpers land last.
+  - type: files
+    files:
+      - source: gaming
+        destination: /
+
+  # Stage Adwaita-for-Steam sources; the per-user blue-hour-steam-theme service
+  # applies them after Steam's first launch.
+  - type: script
+    scripts:
+      - install-adwaita-for-steam.sh
+    snippets:
+      - "chmod 0755 /usr/bin/game-performance /usr/bin/blue-hour-steam-theme"
+
+  - type: systemd
+    user:
+      enabled:
+        # Applies the Steam skin once ~/.steam/steam appears (first launch).
+        - blue-hour-steam-theme.path
 
   # Must stay last.
   - type: signing

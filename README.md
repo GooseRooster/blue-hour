@@ -16,7 +16,7 @@ comes in two flavours that share one common base.
 | Flavour | Image | What it is |
 | --- | --- | --- |
 | **workstation** | `ghcr.io/gooserooster/blue-hour-workstation` | Daily-driver desktop: Sway + Noctalia, the session stack, dev tooling (Nix/Home Manager/Homebrew), baseline Flatpaks. |
-| **gaming** | `ghcr.io/gooserooster/blue-hour-gaming` | Everything in workstation plus the gaming layer: Steam/Wine/Faugus, TuneD latency profile, RPMFusion packages. |
+| **gaming** | `ghcr.io/gooserooster/blue-hour-gaming` | Everything in workstation plus the gaming layer: Steam/Wine/Faugus, TuneD latency profile, gaming-tuned power profile. |
 
 Both flavours are built from the same `common.yml`; `gaming` is a superset of
 `workstation`.
@@ -58,15 +58,18 @@ Both flavours are built from the same `common.yml`; `gaming` is a superset of
 - **Home Manager** for the per-user layer (reusing the author's dotfiles repo),
   including `~/.zshrc` and the shell plugins for the system-provided zsh.
 - **Homebrew** for Linuxbrew packages.
-- **topgrade** to update everything in one shot.
+- **topgrade** to update everything in one shot (bootc, Flatpaks, Homebrew),
+  with a user-overridable default configuration.
+- **Update notifications and tray widget**: staged bootc updates are detected
+  and notified, and the Noctalia bar shows an update dot that opens topgrade.
 
 ### Gaming layer (gaming flavour only)
 - Native **Steam** (Adwaita-for-Steam skinned) and **Wine** + winetricks +
   Faugus Launcher.
-- A `game-performance` helper that switches TuneD to a latency profile and
-  toggles Night Light / caffeine while a game runs.
-- RPMFusion packages added explicitly (without disturbing the base's
-  negativo17 repo).
+- A `game-performance` helper that switches the power profile to a latency
+  profile and enables caffeine while a game runs.
+- Steam from the negativo17 `fedora-steam` repo (not RPMFusion, which would
+  fight the base's negativo17 multimedia stack).
 
 ## Installation
 

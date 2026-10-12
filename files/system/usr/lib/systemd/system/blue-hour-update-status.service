@@ -1,0 +1,10 @@
+[Unit]
+Description=Record blue-hour bootc update status
+Documentation=https://github.com/GooseRooster/blue-hour
+After=network-online.target
+Wants=network-online.target
+ConditionPathExists=/run/ostree-booted
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/blue-hour-update-status

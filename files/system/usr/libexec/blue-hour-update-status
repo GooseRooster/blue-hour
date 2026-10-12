@@ -1,0 +1,58 @@
+#!/usr/bin/bash
+# Record the bootc deployment / update state for the user-facing notifier and
+# Noctalia tray widget.
+#
+# `bootc status` refuses unprivileged users, so this runs as root from
+# blue-hour-update-status.service and writes a world-readable JSON file to
+# /run/blue-hour/update-status.json. It first runs `bootc upgrade --check`,
+# which only downloads updated image metadata (no deployment change), so the
+# status can also report an update that is available but not yet staged.
+#
+# Output schema:
+#   staged          bool   a deployment is queued for the next boot
+#   stagedVersion   string | null
+#   stagedDigest    string | null
+#   bootedVersion   string | null
+#   bootedDigest    string | null
+#   updateAvailable bool   a newer image is available upstream or staged
+#   checkedAt       int    unix seconds
+#
+# See docs/port-plan.md phase 6.
+set -euo pipefail
+
+OUT="/run/blue-hour/update-status.json"
+STATUS_TMP="$(mktemp)"
+
+cleanup() { rm -f "$STATUS_TMP"; }
+trap cleanup EXIT
+
+# Refresh cached upstream metadata (metadata only; safe to run in a timer).
+bootc upgrade --check >/dev/null 2>&1 || true
+
+if ! bootc status --json --format-version=1 >"$STATUS_TMP" 2>/dev/null; then
+  exit 0
+fi
+
+mkdir -p /run/blue-hour
+
+tmp_out="$(mktemp "/run/blue-hour/.update-status.XXXXXX")"
+jq -c '
+  (.status.staged != null) as $staged
+  | (.status.staged.image.image.version // .status.staged.image.version // null) as $stagedVersion
+  | (.status.staged.image.image.imageDigest // .status.staged.image.imageDigest // null) as $stagedDigest
+  | (.status.booted.image.image.version // .status.booted.image.version // null) as $bootedVersion
+  | (.status.booted.image.image.imageDigest // .status.booted.image.imageDigest // null) as $bootedDigest
+  | (.status.booted.cachedUpdate.image.image.imageDigest // null) as $cachedDigest
+  | {
+      staged: $staged,
+      stagedVersion: $stagedVersion,
+      stagedDigest: $stagedDigest,
+      bootedVersion: $bootedVersion,
+      bootedDigest: $bootedDigest,
+      updateAvailable: ($staged or ($cachedDigest != null and $cachedDigest != $bootedDigest)),
+      checkedAt: (now | floor)
+    }
+' "$STATUS_TMP" >"$tmp_out"
+
+chmod 0644 "$tmp_out"
+mv -f "$tmp_out" "$OUT"

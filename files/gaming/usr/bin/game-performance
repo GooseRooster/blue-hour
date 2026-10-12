@@ -1,0 +1,84 @@
+#!/usr/bin/bash
+# game-performance — run a command under the gaming power profile.
+#
+#  While the wrapped command runs it:
+#   * switches the power profile to `performance` (which TuneD maps to
+#     `latency-performance` via the gaming /etc/tuned/ppd.conf),
+#   * enables caffeine so the session does not idle/lock,
+# and restores the previous profile and caffeine state on exit.
+#
+# The profile is driven through Noctalia's IPC (`noctalia msg power-set`), which
+# speaks the power-profiles-daemon API served by tuned-ppd, so no polkit prompt
+# is raised. If Noctalia is not running (e.g. a bare sway session) it falls back
+# to tuned-adm.
+#
+# Usage: game-performance [--] <command> [args...]
+set -euo pipefail
+
+usage() {
+  echo "usage: game-performance [--] <command> [args...]" >&2
+}
+
+[ "$#" -ge 1 ] || {
+  usage
+  exit 2
+}
+[ "${1:-}" = "--" ] && shift
+[ "$#" -ge 1 ] || {
+  usage
+  exit 2
+}
+
+NOCTALIA="$(command -v noctalia || true)"
+NOTIFY="$(command -v notify-send || true)"
+
+notify() {
+  [ -n "$NOTIFY" ] && "$NOTIFY" -a "Game performance" "$@" >/dev/null 2>&1 || true
+}
+
+# tuned_adm <profile> — fall back path when Noctalia is unavailable.
+tuned_adm() {
+  command -v tuned-adm >/dev/null 2>&1 && tuned-adm profile "$1" >/dev/null 2>&1 || true
+}
+
+# ppd_set <power-saver|balanced|performance>.
+ppd_set() {
+  local ppd="$1"
+  if [ -n "$NOCTALIA" ] && "$NOCTALIA" msg power-set "$ppd" >/dev/null 2>&1; then
+    return 0
+  fi
+  case "$ppd" in
+  performance) tuned_adm latency-performance ;;
+  power-saver) tuned_adm powersave ;;
+  *) tuned_adm balanced ;;
+  esac
+}
+
+# Map the active TuneD profile back to a PPD profile so we can restore it.
+tuned_to_ppd() {
+  case "$1" in
+  latency-performance | throughput-performance) echo performance ;;
+  powersave | powersave-*) echo power-saver ;;
+  *) echo balanced ;;
+  esac
+}
+
+saved_ppd="balanced"
+if command -v tuned-adm >/dev/null 2>&1; then
+  active="$(tuned-adm active 2>/dev/null | sed -n 's/^Current active profile: *//p' || true)"
+  [ -n "$active" ] && saved_ppd="$(tuned_to_ppd "$active")"
+fi
+
+restore() {
+  trap - EXIT
+  ppd_set "$saved_ppd"
+  [ -n "$NOCTALIA" ] && noctalia msg caffeine-disable >/dev/null 2>&1 || true
+  notify "Restored profile: $saved_ppd"
+}
+trap restore EXIT
+
+ppd_set performance
+[ -n "$NOCTALIA" ] && noctalia msg caffeine-enable >/dev/null 2>&1 || true
+notify "Gaming mode: $*"
+
+"$@"
