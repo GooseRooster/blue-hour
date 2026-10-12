@@ -72,9 +72,13 @@ modules:
   # --- System baseline Flatpaks ------------------------------------------
   # The base image already
   # sets up the Flathub remote; this only installs the baseline set.
+  # notify is disabled: the v2 module pinged on every boot regardless of whether
+  # anything needed installing. Failures are surfaced instead by the OnFailure
+  # notifier (files/system/usr/lib/systemd/system/*flatpak*). See common.yml
+  # flatpak notes.
   - type: default-flatpaks
     configurations:
-      - notify: true
+      - notify: false
         scope: system
         install:
           - io.mpv.Mpv
@@ -109,7 +113,8 @@ modules:
           - it.mijorus.gearlever
           - org.gtk.Gtk3theme.adw-gtk3
           - org.gtk.Gtk3theme.adw-gtk3-dark
-      - scope: user
+      - notify: false
+        scope: user
 
   # --- Tuned system daemons (both flavours) ------------------------------
   # ananicy-cpp: eBPF auto-nice daemon.
