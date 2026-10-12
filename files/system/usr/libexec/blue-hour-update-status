@@ -36,13 +36,17 @@ fi
 mkdir -p /run/blue-hour
 
 tmp_out="$(mktemp "/run/blue-hour/.update-status.XXXXXX")"
+# bootc host API v1 (org.containers.bootc/v1): a BootEntry has an `image`
+# (ImageStatus), which carries `version`/`imageDigest` directly; `cachedUpdate`
+# is an ImageStatus too. All optional access uses `?` so an unexpected shape
+# yields null rather than aborting the service.
 jq -c '
   (.status.staged != null) as $staged
-  | (.status.staged.image.image.version // .status.staged.image.version // null) as $stagedVersion
-  | (.status.staged.image.image.imageDigest // .status.staged.image.imageDigest // null) as $stagedDigest
-  | (.status.booted.image.image.version // .status.booted.image.version // null) as $bootedVersion
-  | (.status.booted.image.image.imageDigest // .status.booted.image.imageDigest // null) as $bootedDigest
-  | (.status.booted.cachedUpdate.image.image.imageDigest // null) as $cachedDigest
+  | (.status.staged.image.version? // null) as $stagedVersion
+  | (.status.staged.image.imageDigest? // null) as $stagedDigest
+  | (.status.booted.image.version? // null) as $bootedVersion
+  | (.status.booted.image.imageDigest? // null) as $bootedDigest
+  | (.status.booted.cachedUpdate.imageDigest? // .status.booted.cachedUpdate.image?.imageDigest? // null) as $cachedDigest
   | {
       staged: $staged,
       stagedVersion: $stagedVersion,
