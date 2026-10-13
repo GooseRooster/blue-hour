@@ -220,6 +220,18 @@ sudo bootc rollback           # if the new deployment is bad
 Also confirm the "updates staged — reboot to apply" notification fires after a
 staged update.
 
+To exercise the notification and tray widget immediately (without staging a
+real update):
+
+```sh
+ujust blue-hour-test-update          # fake staged status + trigger the notifier
+ujust blue-hour-update-status        # refresh from the real bootc status
+ujust blue-hour-clear-update         # clear the simulation, run the real check
+```
+
+`blue-hour-update-status.timer` fires 2 min after boot, then every 15 min after
+the previous run.
+
 ## 7. Signing
 
 ```sh

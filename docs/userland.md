@@ -104,6 +104,15 @@ left-click opens `blue-hour-topgrade` in a terminal. It is enabled by default vi
 or remove the widget from Noctalia Settings if you prefer, or disable the
 `bluehour/updates` plugin.
 
+The status timer runs 2 minutes after boot and every 15 minutes after that. To
+test the notification/tray path on demand:
+
+```sh
+ujust blue-hour-test-update     # simulate a staged update + trigger the notifier
+ujust blue-hour-update-status   # refresh from the real bootc status
+ujust blue-hour-clear-update    # clear the simulation, run the real check
+```
+
 If a staged update is applied by the base auto-updater at shutdown, the file and
 notification simply never appear — nothing to do.
 

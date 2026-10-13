@@ -48,4 +48,15 @@ modules:
         chmod 0755
         /usr/libexec/blue-hour-update-status
         /usr/libexec/blue-hour-update-notify
+        /usr/libexec/blue-hour-update-simulate
         /usr/bin/blue-hour-topgrade
+
+  # `ujust` update helpers (phase 7, pulled forward): refresh the status check
+  # on demand and simulate a staged update so the notification/tray path can be
+  # tested without waiting for the timer. See files/justfiles/blue-hour.just.
+  - type: justfiles
+    validate: true
+    install: true
+    include:
+      - blue-hour.just
+

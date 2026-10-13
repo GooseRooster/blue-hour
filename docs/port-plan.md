@@ -260,7 +260,9 @@ Implemented across `recipes/common-userland.yml` (Nix + Homebrew),
 ### Phase 7 — Flavours, CI, branding
 `common.yml` + `workstation.yml` + `gaming.yml`, CI matrix, `os-release`
 branding, cosign signing (base + recipe `signing` last), `justfiles` for
-`ujust`-style update commands.
+`ujust`-style update commands. *(The update `ujust` recipes shipped early, in
+`recipes/common-updates.yml` / `files/justfiles/blue-hour.just`, so the
+notification path could be tested — see phase 6.)*
 
 
 ### Phase 7.5 -- Default settings and theme for desktop
